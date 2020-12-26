@@ -1,11 +1,17 @@
 pipeline {
 
-    agent any
+    agent {
+        kubernetes {
+            yamlFile 'jenkins-agent.yaml'
+            defaultContainer 'jenkins-agent'
+            label 'jenkins-build-api'
+        }
+    }
     
     stages {
         stage('Deploy') {
             steps {
-                echo 'Deploying...'
+                echo 'Hello world!'
             }
         }
     }
