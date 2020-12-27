@@ -31,8 +31,14 @@ pipeline {
             }
         }
         stage('Deploy') {
+            environment {
+                DOCKERHUB_CREDS = credentials('dockerhub-username-and-token')
+            }
             steps {
-                sh 'docker push "${IMAGE_NAME}:${TAG}"'
+                sh '''
+                    docker login "-u=${DOCKERHUB_CREDS_USR}" "-p=${DOCKERHUB_CREDS_PSW}"
+                    docker push "${IMAGE_NAME}:${TAG}"
+                '''
             }
         }
     }
