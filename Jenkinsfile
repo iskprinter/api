@@ -6,7 +6,7 @@ pipeline {
         }
     }
     environment{
-        IMAGE_NAME = 'iskprinter/api'
+        IMAGE_NAME = 'docker.io/iskprinter/api'
         TAG = sh(returnStdout: true, script: 'git rev-parse --verify --short HEAD').trim()
     }
     stages {
