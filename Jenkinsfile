@@ -2,11 +2,10 @@ pipeline {
     agent {
         kubernetes {
             yamlFile 'jenkins-agent.yaml'
-            defaultContainer 'jenkins-agent'
-            label 'jenkins-build-api'
+            defaultContainer 'docker-git'
         }
     }
-    environment {
+    environment{
         IMAGE_NAME = 'hub.docker.com/iskprinter/api'
         TAG = sh(returnStdout: true, script: 'git rev-parse --verify --short HEAD').trim()
     }
