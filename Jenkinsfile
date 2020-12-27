@@ -30,7 +30,8 @@ pipeline {
                 sh 'docker build . --target package -t "${IMAGE_NAME}:${TAG}"'
             }
         }
-        stage('Deploy') {
+        stage('Publish') {
+            when { branch 'main' }
             environment {
                 DOCKERHUB_CREDS = credentials('dockerhub-username-and-token')
             }
