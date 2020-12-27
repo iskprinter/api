@@ -1,4 +1,5 @@
-**/dist
-**/node_modules
+.git
+dist/
+node_modules/
 Jenkinsfile
 jenkinsfile-agent.yaml
