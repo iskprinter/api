@@ -3,6 +3,8 @@ https://iskprinter.com/api
 
 Suggests market deals in Eve Online.
 
+![Build Status](https://iskprinter.com/jenkins/buildStatus/icon?job=api%2Fmain)
+
 ## How to develop locally
 
 Activate webpack continuous compilation and serve the backend in development mode.
