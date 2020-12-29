@@ -28,6 +28,7 @@ pipeline {
                     ls
                     ls ./coverage
                     pwd
+                    cat ./coverage/cobertura-coverage.xml
                 '''
                 cobertura(coberturaReportFile: './coverage/cobertura-coverage.xml')
             }
