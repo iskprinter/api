@@ -30,7 +30,10 @@ pipeline {
                     pwd
                     cat ./coverage/cobertura-coverage.xml
                 '''
-                cobertura(coberturaReportFile: './coverage/cobertura-coverage.xml')
+                cobertura(
+                    coberturaReportFile: './coverage/cobertura-coverage.xml',
+                    enableNewApi: true
+                )
             }
         }
         stage('Package') {
