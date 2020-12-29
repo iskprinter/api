@@ -28,6 +28,7 @@ pipeline {
                     chown -R 1000:1000 ./coverage
                 '''
                 cobertura(coberturaReportFile: 'coverage/cobertura-coverage.xml')
+                publishCoverage(adapters: [coberturaAdapter('coverage/cobertura-coverage.xml')])
             }
         }
         stage('Package') {
