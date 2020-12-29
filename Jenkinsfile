@@ -25,12 +25,11 @@ pipeline {
                 sh '''
                     docker build . --target test
                     DOCKER_BUILDKIT=1 docker build . -o ./coverage --target coverage
-                    ls -al
-                    ls -al ./coverage
-                    pwd
-                    cat ./coverage/cobertura-coverage.xml
+                    ls -alh
+                    chown -R jenkins:jenkins ./coverage
+                    ls -alh
                 '''
-                cobertura(coberturaReportFile: '**/cobertura-coverage.xml')
+                cobertura(coberturaReportFile: 'coverage/cobertura-coverage.xml')
             }
         }
         stage('Package') {

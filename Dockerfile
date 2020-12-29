@@ -12,7 +12,6 @@ RUN npm test
 
 FROM scratch AS coverage
 COPY --from=test /app/coverage/. /
-RUN chown -R 1000:1000 /coverage
 
 FROM test AS package
 WORKDIR /app
