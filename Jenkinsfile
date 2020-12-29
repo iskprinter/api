@@ -25,8 +25,8 @@ pipeline {
                 sh '''
                     docker build . --target test
                     DOCKER_BUILDKIT=1 docker build . -o ./coverage --target coverage
-                    ls
-                    ls ./coverage
+                    ls -al
+                    ls -al ./coverage
                     pwd
                     cat ./coverage/cobertura-coverage.xml
                 '''
