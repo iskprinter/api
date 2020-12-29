@@ -13,8 +13,8 @@ RUN npm test
 FROM scratch AS coverage
 COPY --from=test /app/coverage/. /
 
-FROM test AS package
+FROM node:14.9.0-alpine3.12 AS package
 WORKDIR /app
-COPY --from=test /app/dist/* ./
+COPY --from=build /app/dist/* ./
 EXPOSE 3000
 CMD ["node", "app.js"]
