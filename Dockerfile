@@ -3,14 +3,17 @@ WORKDIR /app
 COPY ./package.json ./package-lock.json ./
 RUN npm ci
 
-FROM install as build
+FROM install AS build
 COPY . ./
 RUN npm run build
 
 FROM build AS test
 RUN npm test
 
-FROM test as package
+FROM scratch AS coverage
+COPY --from=test /app/coverage/. /
+
+FROM test AS package
 WORKDIR /app
 COPY --from=test /app/dist/* ./
 EXPOSE 3000

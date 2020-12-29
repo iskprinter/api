@@ -1,5 +1,7 @@
 .git
+coverage/
 dist/
-node_modules/
+Dockerfile
 Jenkinsfile
-jenkinsfile-agent.yaml
+jenkins-agent.yaml
+node_modules/
