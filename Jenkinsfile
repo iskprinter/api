@@ -22,7 +22,13 @@ pipeline {
         }
         stage('Test') {
             steps {
-                sh 'docker build . --target test'
+                sh '''
+                    docker build . --target test
+                    DOCKER_BUILDKIT=1 docker build . -o ./coverage --target coverage
+                '''
+                cobertura {
+                    coberturaReportFile 'coverage/cobertura-coverage.xml'
+                }
             }
         }
         stage('Package') {

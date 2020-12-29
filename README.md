@@ -9,8 +9,7 @@ Suggests market deals in Eve Online.
 
 Activate webpack continuous compilation and serve the backend in development mode.
 ```
-npm --prefix backend/express install
-npm --prefix backend/express run webpack-watch
+./dev-server.sh
 ```
 
 Port-forward the MongoDB database to localhost.
