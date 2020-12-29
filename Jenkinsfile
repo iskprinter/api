@@ -30,7 +30,7 @@ pipeline {
                     pwd
                     cat ./coverage/cobertura-coverage.xml
                 '''
-                cobertura(coberturaReportFile: 'coverage/*.xml')
+                cobertura(coberturaReportFile: '**/cobertura-coverage.xml')
             }
         }
         stage('Package') {
