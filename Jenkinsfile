@@ -26,9 +26,7 @@ pipeline {
                     docker build . --target test
                     DOCKER_BUILDKIT=1 docker build . -o ./coverage --target coverage
                 '''
-                cobertura {
-                    coberturaReportFile 'coverage/cobertura-coverage.xml'
-                }
+                cobertura(coberturaReportFile: 'coverage/cobertura-coverage.xml')
             }
         }
         stage('Package') {
