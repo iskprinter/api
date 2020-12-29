@@ -25,9 +25,7 @@ pipeline {
                 sh '''
                     docker build . --target test
                     DOCKER_BUILDKIT=1 docker build . -o ./coverage --target coverage
-                    ls -alh
                     chown -R 1000:1000 ./coverage
-                    ls -alh
                 '''
                 cobertura(coberturaReportFile: 'coverage/cobertura-coverage.xml')
             }
