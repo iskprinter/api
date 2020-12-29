@@ -27,7 +27,10 @@ pipeline {
                     DOCKER_BUILDKIT=1 docker build . -o ./coverage --target coverage
                     chown -R 1000:1000 ./coverage
                 '''
-                publishCoverage(adapters: [coberturaAdapter('coverage/cobertura-coverage.xml')])
+                publishCoverage(
+                    adapters: [coberturaAdapter('coverage/cobertura-coverage.xml')],
+                    failNoReports: true
+                )
             }
         }
         stage('Package') {
