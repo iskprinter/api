@@ -31,7 +31,7 @@ pipeline {
                     cat ./coverage/cobertura-coverage.xml
                 '''
                 cobertura(
-                    coberturaReportFile: 'coverage/cobertura-coverage.xml',
+                    coberturaReportFile: 'coverage/*.xml',
                     enableNewApi: true
                 )
             }
