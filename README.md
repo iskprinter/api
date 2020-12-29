@@ -8,29 +8,27 @@ Suggests market deals in Eve Online.
 
 ## How to develop locally
 
-Activate webpack continuous compilation and serve the backend in development mode.
-```
-./dev-server.sh
-```
+1. Export the relevant environment variables into the shell.
+    ```
+    export CLIENT_ID='<client-id>'
+    export CLIENT_SECRET='<client-secret>'
+    export DB_URL='mongodb://localhost:27017'
+    ```
 
-Port-forward the MongoDB database to localhost.
-```
-kubectl --context docker-desktop -n isk-printer port-forward svc/isk-printer-database 27017:27017
-```
-
-Then, in a separate shell, start the server.
-```
-export CLIENT_ID='<client-id>'
-export CLIENT_SECRET='<client-secret>'
-export DB_URL='mongodb://localhost:27017'
-npm --prefix backend/express run serve
-```
+2. Run the `dev-server.sh` script.
+    ```
+    ./dev-server.sh
+    ```
+    This will:
+    * Forward port 27017 of the database service the local kubernetes cluster to localhost:27017
+    * Activate webpack continuous compilation
+    * Serve the backend in continuous development mode
 
 ## How to build the image
 
 To build the image and push it:
 ```
 tag=$(git rev-parse --verify --short HEAD)
-docker build . -t "hub.docker.com/iskprinter/api:${tag}"
-docker push "hub.docker.com/iskprinter/api:${tag}"
+docker build . -t "docker.io/iskprinter/api:${tag}"
+docker push "docker.io/iskprinter/api:${tag}"
 ```
