@@ -39,7 +39,6 @@ pipeline {
             }
         }
         stage('Publish') {
-            when { branch 'main' }
             environment {
                 DOCKERHUB_CREDS = credentials('dockerhub-username-and-token')
             }
