@@ -38,7 +38,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
       `&scope=${scopes.join('%20')}`,
       req.body.state ? `&state=${req.body.state}` : '',
     ].join('');
-    res.json({ loginUrl });
+    res.json(loginUrl);
 
   } catch (error) {
     if (error instanceof HttpError) {
