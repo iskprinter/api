@@ -3,7 +3,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import { RequiredParams, RequestValidator } from 'src/tools/RequestValidator';
 import { HttpError } from 'src/errors/HttpError';
 import { AuthenticationController } from 'src/controllers/Authentication';
-import { BadRequestError } from 'src/errors/BadRequestError';
+import { Token } from 'src/entities/Token';
 
 const router = express.Router();
 
@@ -11,30 +11,17 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
   try {
 
-    let accessToken;
-    if (req.body.code) {
-
-      const requiredParams: RequiredParams = {
-        body: [ 'code' ],
-        query: [],
-      };
-      (new RequestValidator(requiredParams)).validate(req);
-      accessToken = await (new AuthenticationController).getTokenFromCode(req.body.code);
-
-    } else if (req.body.accessToken) {
-
-      const requiredParams: RequiredParams = {
-        body: [ 'accessToken' ],
-        query: [],
-      };
-      (new RequestValidator(requiredParams)).validate(req);
-      accessToken = await (new AuthenticationController).getTokenFromRefresh(req.body.accessToken);
-
-    } else {
-      throw new BadRequestError("Expected the request body to contain 'code' or 'accessToken'.");
-    }
-
-    return res.json(accessToken);
+    const requiredParams: RequiredParams = {
+      body: [
+        'grantType',
+        'proof'
+      ],
+      query: [],
+    };
+    (new RequestValidator(requiredParams)).validate(req);
+    
+    const token: Token = await (new AuthenticationController).getToken(req.body);
+    return res.json(token.accessToken);
 
   } catch (error) {
 
