@@ -1,4 +1,4 @@
 export interface TokenRequest {
-    grantType: string;
+    proofType: string;
     proof: string;
 };

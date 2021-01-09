@@ -15,17 +15,17 @@ export class TokenFactory {
     }
 
     async createToken(tokenRequest: TokenRequest): Promise<Token> {
-        switch (tokenRequest.grantType) {
+        switch (tokenRequest.proofType) {
             case 'authorizationCode':
-                return this.createTokenFromAuthCode(tokenRequest.proof);
-            case 'refreshToken':
-                return this.createTokenFromRefreshToken(tokenRequest.proof);
+                return this.createTokenFromAuthorizationCode(tokenRequest.proof);
+            case 'priorAccessToken':
+                return this.createTokenFromPriorAccessToken(tokenRequest.proof);
             default:
-                throw new BadRequestError("Expected 'grantType' to be either 'authorizationCode' or 'refreshToken'.");
+                throw new BadRequestError("Expected 'grantType' to be either 'authorizationCode' or 'priorAccessToken'.");
         }
     }
 
-    private async createTokenFromAuthCode(code: string): Promise<Token> {
+    private async createTokenFromAuthorizationCode(code: string): Promise<Token> {
 
         const config = {
             headers: TokenFactory.basicAuthHeader()
@@ -46,7 +46,7 @@ export class TokenFactory {
         
     }
 
-    private async createTokenFromRefreshToken(priorAccessToken: string): Promise<Token> {
+    private async createTokenFromPriorAccessToken(priorAccessToken: string): Promise<Token> {
 
         // Retrieve the old accessToken:refreshToken pair.
         const priorToken = await Token.withCollection((collection: Collection<any>) => {
