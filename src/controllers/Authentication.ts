@@ -1,15 +1,12 @@
-import { Token } from 'src/entities/Token'
+import { Token } from 'src/entities/Token';
+import { TokenFactory } from 'src/entities/TokenFactory';
+import { TokenRequest } from 'src/entities/TokenRequest';
 
 export class AuthenticationController {
 
-    async getTokenFromCode(code: string) {
-        const token = await Token.fromCode(code);
-        return token.accessToken;
+    async getToken(tokenRequest: TokenRequest): Promise<Token> {
+        const tf = new TokenFactory();
+        return tf.createToken(tokenRequest);
     }
 
-    async getTokenFromRefresh(accessToken: string) {
-        const token = await Token.fromRefresh(accessToken);
-        return token.accessToken;
-    }
-
-}
+};
