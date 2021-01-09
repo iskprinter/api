@@ -34,7 +34,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       throw new BadRequestError("Expected the request body to contain 'code' or 'accessToken'.");
     }
 
-    return res.json({ accessToken });
+    return res.json(accessToken);
 
   } catch (error) {
 
