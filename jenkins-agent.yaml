@@ -5,6 +5,9 @@ spec:
   - name: docker-git
     image: docker:20.10.1-git
     command: ['cat']
+    env:
+    - name: JENKINS_AGENT_WORKDIR
+      value: /home/jenkins/agent
     tty: true
     volumeMounts:
     - name: dockersock

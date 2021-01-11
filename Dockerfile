@@ -10,9 +10,6 @@ RUN npm run build
 FROM build AS test
 RUN npm test
 
-FROM scratch AS coverage
-COPY --from=test /app/coverage/. /
-
 FROM node:14.9.0-alpine3.12 AS package
 WORKDIR /app
 COPY --from=build /app/dist/* ./
