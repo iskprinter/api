@@ -12,20 +12,21 @@ pipeline {
     stages {
         stage('Install') {
             steps {
-                sh 'DOCKER_BUILDKIT=1 docker build . --target install'
+                sh 'docker build . --target install'
             }
         }
         stage('Build') {
             steps {
-                sh 'DOCKER_BUILDKIT=1 docker build . --target build'
+                sh 'docker build . --target build'
             }
         }
         stage('Test') {
             steps {
                 sh '''
-                    docker build . --target test
-                    DOCKER_BUILDKIT=1 docker build . -o ./coverage --target coverage
-                    chown -R 1000:1000 ./coverage
+                    docker build . --target test -t "${IMAGE_NAME}:${TAG}-coverage"
+                    id=$(docker create "${IMAGE_NAME}:${TAG}-coverage")
+                    docker cp "${id}:/app/coverage" ./coverage
+                    docker rm "$id"
                 '''
                 publishCoverage(
                     adapters: [coberturaAdapter('coverage/cobertura-coverage.xml')],
@@ -35,7 +36,7 @@ pipeline {
         }
         stage('Package') {
             steps {
-                sh 'DOCKER_BUILDKIT=1 docker build . --target package -t "${IMAGE_NAME}:${TAG}"'
+                sh 'docker build . --target package -t "${IMAGE_NAME}:${TAG}"'
             }
         }
         stage('Publish') {
