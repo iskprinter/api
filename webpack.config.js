@@ -20,6 +20,5 @@ module.exports = {
     extensions: ['.tsx', '.ts', '.js'],
     modules: [path.resolve(__dirname, './'), 'node_modules']
   },
-  target: 'node',
-  externals: [nodeExternals()]
+  target: 'node'
 }
