@@ -1,4 +1,4 @@
-FROM node:14.9.0-alpine3.12 AS install
+FROM node:16-alpine3.14 AS install
 WORKDIR /app
 COPY ./package.json ./package-lock.json ./
 RUN npm ci
@@ -10,7 +10,7 @@ RUN npm run build
 FROM build AS test
 RUN npm test
 
-FROM node:14.9.0-alpine3.12 AS package
+FROM node:16-alpine3.14 AS package
 WORKDIR /app
 COPY --from=build /app/dist/* ./
 EXPOSE 3000
