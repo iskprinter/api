@@ -38,7 +38,7 @@ export class TokenFactory {
         const {
             access_token: accessToken,
             refresh_token: refreshToken
-        } = eveResponse.data;
+        }: any = eveResponse.data;
 
         const token = new Token(accessToken, refreshToken);
         await token.save();
@@ -69,7 +69,7 @@ export class TokenFactory {
         let eveResponse;
         try {
             eveResponse = await axios.post('https://login.eveonline.com/v2/oauth/token', body, config);
-        } catch (error) {
+        } catch (error: any) {
             if (error.response.status === 400 && error.response.data.error === 'invalid_grant') {
                 throw new ResourceNotFoundError(`The Eve API rejected the refresh token.`);
             }
@@ -78,7 +78,7 @@ export class TokenFactory {
         const {
             access_token: accessToken,
             refresh_token: refreshToken
-        } = eveResponse.data;
+        }: any = eveResponse.data;
 
         // Save the new accessToken:refreshToken pair.
         const token = new Token(accessToken, refreshToken);
