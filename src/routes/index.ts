@@ -1,13 +1,17 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Request, Response, NextFunction } from 'express'
 
-import apiRoutes from 'src/routes/api';
+import loginUrlRoutes from 'src/routes/login-url'
+import tokenRoutes from 'src/routes/tokens'
+import typeRoutes from 'src/routes/types'
 
-const router = express.Router();
+const router = express.Router()
 
-router.use('/api', apiRoutes);
+router.use('/login-url', loginUrlRoutes)
+router.use('/tokens', tokenRoutes)
+router.use('/types', typeRoutes)
 
 router.get('/', (req: Request, res: Response, next: NextFunction) => {
-  res.sendStatus(200);
-});
+  res.sendStatus(200)
+})
 
-export default router;
+export default router
