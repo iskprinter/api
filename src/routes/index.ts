@@ -10,7 +10,7 @@ router.use('/login-url', loginUrlRoutes)
 router.use('/tokens', tokenRoutes)
 router.use('/types', typeRoutes)
 
-router.get('/', (req: Request, res: Response, next: NextFunction) => {
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   res.sendStatus(200)
 })
 
