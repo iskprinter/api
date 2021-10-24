@@ -5,13 +5,8 @@ import { Type } from 'src/entities/Type'
 const router = express.Router()
 
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const types: Type[] = await Type.find({})
-    return res.json(types)
-  } catch (error) {
-    console.error(error)
-    return res.sendStatus(500)
-  }
+  const types: Type[] = await Type.find({})
+  return res.json(types)
 })
 
 export default router

@@ -1,12 +1,11 @@
 import axios from 'axios'
 import { Collection } from 'mongodb'
-import { BadRequestError } from 'src/errors/BadRequestError'
-import { ResourceNotFoundError } from 'src/errors/ResourceNotFoundError'
+import { BadRequestError, ResourceNotFoundError, UnauthorizedError } from 'src/errors'
 import { Token } from './Token'
 import { TokenPostRequest } from './TokenRequests'
 
 export class TokenFactory {
-  private static basicAuthHeader (): {Authorization: string} {
+  private static basicAuthHeader (): { Authorization: string } {
     const basicAuth = `${process.env.CLIENT_ID}:${process.env.CLIENT_SECRET}`
     const encodedBasicAuth = Buffer.from(basicAuth).toString('base64')
     const basicAuthHeader = { Authorization: `Basic ${encodedBasicAuth}` }
@@ -32,7 +31,15 @@ export class TokenFactory {
       grant_type: 'authorization_code',
       code
     }
-    const eveResponse = await axios.post('https://login.eveonline.com/oauth/token', body, config)
+    let eveResponse
+    try {
+      eveResponse = await axios.post('https://login.eveonline.com/oauth/token', body, config)
+    } catch (err: any) {
+      if (err.response.status === 401) {
+        throw new UnauthorizedError()
+      }
+      throw err
+    }
     const {
       access_token: accessToken,
       refresh_token: refreshToken
@@ -65,11 +72,11 @@ export class TokenFactory {
     let eveResponse
     try {
       eveResponse = await axios.post('https://login.eveonline.com/v2/oauth/token', body, config)
-    } catch (error: any) {
-      if (error.response.status === 400 && error.response.data.error === 'invalid_grant') {
+    } catch (err: any) {
+      if (err.response.status === 400 && err.response.data.error === 'invalid_grant') {
         throw new ResourceNotFoundError('The Eve API rejected the refresh token.')
       }
-      throw error
+      throw err
     }
     const {
       access_token: accessToken,
