@@ -9,12 +9,12 @@ export class Token implements PersistentEntity {
   accessToken: string;
   refreshToken: string;
 
-  constructor(accessToken: string, refreshToken: string) {
+  constructor (accessToken: string, refreshToken: string) {
     this.accessToken = accessToken
     this.refreshToken = refreshToken
   }
 
-  static async withCollection(next: (collection: Collection<any>) => Promise<any>): Promise<any> {
+  static async withCollection (next: (collection: Collection<any>) => Promise<any>): Promise<any> {
     const dbUrl = process.env.DB_URL
     if (!dbUrl) {
       throw new Error("Environment variable 'DB_URL' is undefined.")
@@ -31,7 +31,7 @@ export class Token implements PersistentEntity {
     return updatedEntity
   }
 
-  async save(): Promise<Token> {
+  async save (): Promise<Token> {
     await Token.withCollection((collection: Collection<any>) => collection.insertOne(this))
     return this
   }
