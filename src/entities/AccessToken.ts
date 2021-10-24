@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { UnauthorizedError } from 'src/errors'
 import { TokenVerificationResponse } from './TokenRequests'
 
 export class AccessToken {
@@ -14,7 +15,15 @@ export class AccessToken {
         authorization: `Bearer ${this.tokenString}`
       }
     }
-    const eveResponse = await axios.get<TokenVerificationResponse>('https://login.eveonline.com/oauth/verify', config)
+    let eveResponse
+    try {
+      eveResponse = await axios.get<TokenVerificationResponse>('https://login.eveonline.com/oauth/verify', config)
+    } catch (err: any) {
+      if (err.response.status === 401) {
+        throw new UnauthorizedError()
+      }
+      throw err
+    }
     return eveResponse.data
   }
 }
