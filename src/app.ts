@@ -1,3 +1,4 @@
+import cors from 'cors'
 import express, { Request, Response, NextFunction } from 'express'
 import morganLogger from 'morgan'
 import loggerFactory from 'pino'
@@ -9,6 +10,7 @@ import { HttpError } from './errors/HttpError'
 const app = express()
 const log = loggerFactory()
 
+app.use(cors({ origin: process.env.FRONTEND_URLS?.split(",") }))
 app.use(morganLogger('dev'))
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
