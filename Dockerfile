@@ -7,7 +7,7 @@ COPY . ./
 FROM install AS test
 RUN npm test
 
-FROM install AS build
+FROM test AS build
 RUN npm run build
 
 FROM node:16-alpine3.14 AS package
