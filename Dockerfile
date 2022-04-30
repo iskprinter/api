@@ -1,4 +1,4 @@
-FROM node:16-alpine3.14 AS install
+FROM node:16-bullseye AS install
 WORKDIR /app
 COPY ./package.json ./package-lock.json ./
 RUN npm ci
