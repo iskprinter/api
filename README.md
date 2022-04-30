@@ -32,3 +32,11 @@ tag=$(git rev-parse --verify --short HEAD)
 docker build . -t "docker.io/iskprinter/api:${tag}"
 docker push "docker.io/iskprinter/api:${tag}"
 ```
+
+## Configuration
+
+The following environment variables are supported.
+
+| Name | Description | Required | Default |
+| --- | --- | --- | --- |
+| FRONTEND_URLS | A comma-delimited string of frontend URLS. Used to set the CORS header. | false | None |
