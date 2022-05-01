@@ -14,7 +14,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
   (new RequestValidator(requiredParams)).validate(req)
 
-  const responseType = 'code'
+  const responseType = 'code';
   const scopes = [
     'esi-assets.read_assets.v1',
     'esi-characterstats.read.v1',
@@ -25,16 +25,19 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     'esi-skills.read_skills.v1',
     'esi-universe.read_structures.v1',
     'esi-wallet.read_character_wallet.v1'
-  ]
-  const loginUrl = [
-    `https://${LOGIN_SERVER_DOMAIN_NAME}/oauth/authorize`,
-    `?response_type=${responseType}`,
-    `&redirect_uri=${req.query['callback-url']}`,
-    `&client_id=${process.env.CLIENT_ID}`,
-    `&scope=${scopes.join('%20')}`,
-    req.body.state ? `&state=${req.body.state}` : ''
-  ].join('')
-  res.json(loginUrl)
+  ];
+  const loginUrl = new URL(
+    `/oauth/authorize`,
+    `https://${LOGIN_SERVER_DOMAIN_NAME}/`
+  );
+  loginUrl.search = new URLSearchParams({
+    response_type: responseType,
+    redirect_uri: String(req.query['callback-url']),
+    client_id: String(process.env.CLIENT_ID),
+    scope: scopes.join(' '),
+    state: String(req.body.state),
+  }).toString()
+  res.json(loginUrl.toString());
 })
 
 export default router
