@@ -24,21 +24,27 @@ export class TokenFactory {
   }
 
   private async createTokenFromAuthorizationCode (code: string): Promise<Token> {
-    const config = {
-      headers: TokenFactory.basicAuthHeader()
-    }
-    const body = {
-      grant_type: 'authorization_code',
-      code
-    }
     let eveResponse
     try {
-      eveResponse = await axios.post('https://login.eveonline.com/oauth/token', body, config)
+      const config = {
+        headers: {
+          ...TokenFactory.basicAuthHeader(),
+          "Content-Type": "application/x-www-form-urlencoded",
+          Host: "login.eveonline.com"
+        }
+      };
+      const body = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code
+      });
+      console.log(body);
+      eveResponse = await axios.post('https://login.eveonline.com/v2/oauth/token', body, config)
     } catch (err: any) {
       if (err.response.status === 401) {
         throw new UnauthorizedError()
       }
-      throw err
+      console.error(err);
+      throw err;
     }
     const {
       access_token: accessToken,
@@ -46,8 +52,9 @@ export class TokenFactory {
     }: any = eveResponse.data
 
     const token = new Token(accessToken, refreshToken)
-    await token.save()
-    return token
+    console.log(`Generated new access/refresh token pair ${JSON.stringify(token)}.`);
+    await token.save();
+    return token;
   }
 
   private async createTokenFromPriorAccessToken (priorAccessToken: string): Promise<Token> {

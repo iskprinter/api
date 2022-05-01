@@ -3,6 +3,7 @@ import { UnauthorizedError } from 'src/errors'
 import { TokenVerificationResponse } from './TokenRequests'
 
 export class AccessToken {
+  
   tokenString: string;
 
   constructor (tokenString: string) {
@@ -26,4 +27,5 @@ export class AccessToken {
     }
     return eveResponse.data
   }
+
 }

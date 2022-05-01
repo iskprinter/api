@@ -34,7 +34,7 @@ app.use(async (err: any, req: Request, res: Response, next: NextFunction): Promi
   }
 
   log.error('Non-http error received. Returning 500.')
-  log.error(err.stack)
+  log.error(err)
   res.sendStatus(500)
 })
 

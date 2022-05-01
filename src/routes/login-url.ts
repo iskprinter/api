@@ -27,7 +27,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     'esi-wallet.read_character_wallet.v1'
   ];
   const loginUrl = new URL(
-    `/oauth/authorize`,
+    `/v2/oauth/authorize`,
     `https://${LOGIN_SERVER_DOMAIN_NAME}/`
   );
   loginUrl.search = new URLSearchParams({
