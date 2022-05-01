@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "webpack --mode production",
-    "start": "dist/app.js",
+    "start": "./start.sh",
     "test": "jest --silent --coverage"
   },
   "author": "Cameron Hudson",
