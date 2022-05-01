@@ -30,10 +30,14 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     ],
     query: []
   };
-  (new RequestValidator(requiredParams)).validate(req)
+  console.log('Validating request to POST /tokens...');
+  (new RequestValidator(requiredParams)).validate(req);
+  console.log('Successfully validated request to POST /tokens.');
 
   const tokenRequest: TokenPostRequest = req.body
+  console.log(`Creating token for tokenRequest ${JSON.stringify(tokenRequest)}...`);
   const token: Token = await (new AuthenticationController()).getToken(tokenRequest)
+  console.log(`Successfully created token for tokenRequest ${JSON.stringify(tokenRequest)}...`);
   return res.json(token.accessToken)
 })
 

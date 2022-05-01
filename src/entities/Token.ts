@@ -15,11 +15,12 @@ export class Token implements PersistentEntity {
   }
 
   static async withCollection (next: (collection: Collection<any>) => Promise<any>): Promise<any> {
-    const dbUrl = process.env.DB_URL
+    const dbUrl = process.env.DB_URL || "mongodb://localhost:27017";
     if (!dbUrl) {
       throw new Error("Environment variable 'DB_URL' is undefined.")
     }
     const client = new MongoClient(dbUrl)
+    console.log(`Connecting to MongoDB at URL ${dbUrl}...`);
     await client.connect()
     const db = await client.db(Token.DB_NAME)
     const collection = await db.collection(Token.COLLECTION_NAME)
