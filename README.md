@@ -15,7 +15,18 @@ Suggests market deals in Eve Online.
     export DB_URL='mongodb://localhost:27017'
     ```
 
-2. Run the `dev-server.sh` script.
+2. You have 2 options. Either build a docker container and run it
+    ```
+    docker build . -t api
+    docker run --rm -it \
+        -e "FRONTEND_URLS=${FRONTEND_URLS}" \
+        -e "CLIENT_ID=${CLIENT_ID}" \
+        -e "CLIENT_SECRET=${CLIENT_SECRET}" \
+        -p 3000:3000 \
+        api
+    ```
+    
+    Or, run the `dev-server.sh` script.
     ```
     ./dev-server.sh
     ```
