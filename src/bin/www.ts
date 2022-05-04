@@ -1,12 +1,22 @@
-// #!/usr/bin/env node
+#!/usr/bin/env ts-node
 
 /**
  * Module dependencies.
  */
 
-import app from 'src/app'
-import http from 'http'
 import { AddressInfo } from 'net'
+import http from 'http'
+import pino from 'pino'
+
+import app from 'src/app'
+
+// Enable pino logging
+const pinoLogger = pino();
+console = {
+  ...console,
+  ...pinoLogger
+};
+console.log = (...args) => pinoLogger.info(...args);
 
 /**
  * Get port from environment and store in Express.
