@@ -11,6 +11,6 @@ stop_children() {
 trap stop_children EXIT
 
 mongo_container_id="$(docker run -d -p 27017:27017 mongo:latest)"
-node_modules/.bin/webpack --mode development --watch &
-node_modules/.bin/nodemon dist/app.js &
+node_modules/.bin/webpack --watch &
+NODE_OPTIONS=--enable-source-maps node_modules/.bin/nodemon dist/app.js &
 wait

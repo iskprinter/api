@@ -34,7 +34,7 @@ app.use(async (err: any, req: Request, res: Response, next: NextFunction): Promi
 
   if (err instanceof HttpError) {
     console.info('HttpError received. Sending appropriate response.')
-    res.status(err.statusCode).send(err.message)
+    res.status(err.statusCode).json(err.message)
     return
   }
 
