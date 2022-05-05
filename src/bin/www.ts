@@ -11,12 +11,8 @@ import pino from 'pino'
 import app from 'src/app'
 
 // Enable pino logging
-const pinoLogger = pino();
-console = {
-  ...console,
-  ...pinoLogger
-};
-console.log = (...args) => pinoLogger.info(...args);
+console = pino() as any;
+console.log = (...args) => console.info(...args);
 
 /**
  * Get port from environment and store in Express.
