@@ -1,7 +1,7 @@
 import { MongoClient, Collection, Filter } from 'mongodb'
 
 export class Type {
-  static DB_NAME = 'isk-printer';
+  static DB_NAME = 'iskprinter';
   static COLLECTION_NAME = 'types';
 
   static async find (query: Filter<any>): Promise<Type[]> {
