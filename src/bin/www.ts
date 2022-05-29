@@ -5,6 +5,7 @@
  */
 
 import { AddressInfo } from 'net'
+import env from 'env-var';
 import http from 'http'
 import pino from 'pino'
 
@@ -18,7 +19,7 @@ console.log = (...args) => console.info(...args);
  * Get port from environment and store in Express.
  */
 
-const port = normalizePort(process.env.PORT || '3000')
+const port = normalizePort(String(env.get('PORT').asPortNumber() || 3000));
 app.set('port', port)
 
 /**

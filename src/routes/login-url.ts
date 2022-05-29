@@ -1,3 +1,4 @@
+import env from 'env-var';
 import express, { Request, Response, NextFunction } from 'express'
 
 import { RequiredParams, RequestValidator } from 'src/tools/RequestValidator'
@@ -33,11 +34,11 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   loginUrl.search = new URLSearchParams({
     response_type: responseType,
     redirect_uri: String(req.query['callback-url']),
-    client_id: String(process.env.CLIENT_ID),
+    client_id: String(env.get('CLIENT_ID').required().asString()),
     scope: scopes.join(' '),
     state: String(req.body.state),
   }).toString()
   res.json(loginUrl.toString());
 })
 
-export default router
+export default router;

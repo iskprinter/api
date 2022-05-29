@@ -6,26 +6,26 @@ export class AccessToken {
   
   tokenString: string;
 
-  constructor (tokenString: string) {
+  constructor(tokenString: string) {
     this.tokenString = tokenString
   }
 
-  async verify (): Promise<TokenVerificationResponse> {
+  async verify(): Promise<TokenVerificationResponse> {
     const config = {
       headers: {
         authorization: `Bearer ${this.tokenString}`
       }
     }
-    let eveResponse
+    let eveResponse;
     try {
-      eveResponse = await axios.get<TokenVerificationResponse>('https://login.eveonline.com/oauth/verify', config)
+      eveResponse = await axios.get<TokenVerificationResponse>('https://login.eveonline.com/oauth/verify', config);
     } catch (err: any) {
       if (err.response.status === 401) {
-        throw new UnauthorizedError()
+        throw new UnauthorizedError();
       }
-      throw err
+      throw err;
     }
-    return eveResponse.data
+    return eveResponse.data;
   }
 
 }
