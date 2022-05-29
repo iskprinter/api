@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "webpack --mode production",
-    "start": "DB_URL=mongodb://localhost:27017 ./start.sh",
+    "start": "DB_URL=mongodb://localhost:27017 FRONTEND_URLS=http://localhost:4200 ./start.sh",
     "test": "jest --silent --coverage"
   },
   "author": "Cameron Hudson",
@@ -46,6 +46,7 @@
   "dependencies": {
     "axios": "^0.23.0",
     "cors": "^2.8.5",
+    "env-var": "^7.1.1",
     "express": "^5.0.0-alpha.8",
     "express-pino-logger": "^7.0.0",
     "mongodb": "^4.1.3",

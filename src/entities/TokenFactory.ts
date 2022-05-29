@@ -1,15 +1,19 @@
 import axios from 'axios'
+import env from 'env-var';
 import { Collection } from 'mongodb'
+
 import { BadRequestError, ResourceNotFoundError, UnauthorizedError } from 'src/errors'
 import { Token } from './Token'
 import { TokenPostRequest } from './TokenRequests'
 
 export class TokenFactory {
-  private static basicAuthHeader (): { Authorization: string } {
-    const basicAuth = `${process.env.CLIENT_ID}:${process.env.CLIENT_SECRET}`
-    const encodedBasicAuth = Buffer.from(basicAuth).toString('base64')
-    const basicAuthHeader = { Authorization: `Basic ${encodedBasicAuth}` }
-    return basicAuthHeader
+  private static basicAuthHeader (): string {
+    const clientId = env.get('CLIENT_ID').required().asString();
+    const clientSecret = env.get('CLIENT_SECRET').required().asString();
+    const basicAuth = `${clientId}:${clientSecret}`;
+    const encodedBasicAuth = Buffer.from(basicAuth).toString('base64');
+    const basicAuthHeader = `Basic ${encodedBasicAuth}`;
+    return basicAuthHeader;
   }
 
   async createToken (tokenRequest: TokenPostRequest): Promise<Token> {
@@ -28,17 +32,16 @@ export class TokenFactory {
     try {
       const config = {
         headers: {
-          ...TokenFactory.basicAuthHeader(),
-          "Content-Type": "application/x-www-form-urlencoded",
-          Host: "login.eveonline.com"
+          'Authorization': TokenFactory.basicAuthHeader(),
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Host': 'login.eveonline.com'
         }
       };
       const body = new URLSearchParams({
         grant_type: 'authorization_code',
         code
       });
-      console.log(body);
-      eveResponse = await axios.post('https://login.eveonline.com/v2/oauth/token', body, config)
+      eveResponse = await axios.post('https://login.eveonline.com/v2/oauth/token', body.toString(), config)
     } catch (err: any) {
       if (err.response.status === 401) {
         throw new UnauthorizedError()
@@ -60,6 +63,7 @@ export class TokenFactory {
   private async createTokenFromPriorAccessToken (priorAccessToken: string): Promise<Token> {
     // Retrieve the old accessToken:refreshToken pair.
     const priorToken = await Token.withCollection((collection: Collection<any>) => {
+      console.log(`Finding refresh token corresponding to access token ${priorAccessToken}...`);
       return collection.findOne({ accessToken: priorAccessToken })
     })
 
@@ -69,18 +73,23 @@ export class TokenFactory {
 
     // Send it to Eve for refreshing.
     const config = {
-      headers: TokenFactory.basicAuthHeader()
+      headers: {
+        'Authorization': TokenFactory.basicAuthHeader(),
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Host': 'login.eveonline.com'
+      }
     }
-    const body = {
+    const body = new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: priorToken.refreshToken
-    }
+    });
 
     let eveResponse
     try {
-      eveResponse = await axios.post('https://login.eveonline.com/v2/oauth/token', body, config)
+      eveResponse = await axios.post('https://login.eveonline.com/v2/oauth/token', body.toString(), config)
     } catch (err: any) {
       if (err.response.status === 400 && err.response.data.error === 'invalid_grant') {
+        console.error(err);
         throw new ResourceNotFoundError('The Eve API rejected the refresh token.')
       }
       throw err

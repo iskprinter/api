@@ -1,6 +1,7 @@
+import env from 'env-var';
 import { MongoClient, Collection, Filter } from 'mongodb'
 
-export class Type {
+export default class Type {
   static DB_NAME = 'iskprinter';
   static COLLECTION_NAME = 'types';
 
@@ -14,7 +15,7 @@ export class Type {
   }
 
   static async withCollection (next: (collection: Collection<any>) => Promise<any>): Promise<any> {
-    const dbUrl = process.env.DB_URL
+    const dbUrl = env.get('DB_URL').required().asUrlString();
     if (!dbUrl) {
       throw new Error("Environment variable 'DB_URL' is undefined.")
     }

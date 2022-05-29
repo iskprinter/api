@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express'
 
 import { RequiredParams, RequestValidator } from 'src/tools/RequestValidator'
-import { AuthenticationController } from 'src/controllers/Authentication'
+import authenticationController from 'src/controllers/AuthenticationController'
 import { Token } from 'src/entities/Token'
 import { TokenPostRequest, TokenVerificationResponse } from 'src/entities/TokenRequests'
 import { BadRequestError } from 'src/errors/BadRequestError'
@@ -18,7 +18,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   }
   const accessToken: string = (authHeader as any).match(/^Bearer (.*)$/)[1]
 
-  const tvr: TokenVerificationResponse = await (new AuthenticationController()).verifyToken(accessToken)
+  const tvr: TokenVerificationResponse = await authenticationController.verifyToken(accessToken)
   return res.json(tvr)
 })
 
@@ -35,9 +35,11 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   console.log('Successfully validated request to POST /tokens.');
 
   const tokenRequest: TokenPostRequest = req.body
+
   console.log(`Creating token for tokenRequest ${JSON.stringify(tokenRequest)}...`);
-  const token: Token = await (new AuthenticationController()).getToken(tokenRequest)
-  console.log(`Successfully created token for tokenRequest ${JSON.stringify(tokenRequest)}...`);
+  const token: Token = await authenticationController.getToken(tokenRequest)
+  console.log(`Successfully created token for tokenRequest ${JSON.stringify(tokenRequest)}.`);
+
   return res.json(token.accessToken)
 })
 
