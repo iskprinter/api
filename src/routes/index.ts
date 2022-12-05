@@ -1,7 +1,6 @@
 import express, { Request, Response, Router } from 'express';
 import { Database } from 'src/databases/Database';
 
-import loginUrlRoutes from 'src/routes/login-url';
 import tokenRoutes from 'src/routes/tokens';
 import typeRoutes from 'src/routes/types';
 
@@ -9,7 +8,6 @@ export default function indexRoutes(database: Database): Router {
 
   const router = express.Router();
 
-  router.use('/login-url', loginUrlRoutes(database));
   router.use('/tokens', tokenRoutes(database));
   router.use('/types', typeRoutes(database));
 
@@ -18,5 +16,4 @@ export default function indexRoutes(database: Database): Router {
   });
 
   return router;
-
 }
