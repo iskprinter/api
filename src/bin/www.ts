@@ -9,13 +9,13 @@ import env from 'env-var';
 import http from 'http'
 
 import createApp from 'src/app'
-import { MongoDb } from 'src/databases/MongoDb';
+import { MongoDatabase } from 'src/databases/MongoDatabase';
 import log from 'src/tools/Logger';
 
 /**
  * Initialize database connection
  */
-const dbClient = new MongoDb()
+const dbClient = new MongoDatabase()
 dbClient.connect().then((dbClient) => {
 
   const app = createApp(dbClient);
