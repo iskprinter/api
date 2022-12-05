@@ -12,17 +12,21 @@ Suggests market deals in Eve Online.
     ```
     export CLIENT_ID='<client-id>'
     export CLIENT_SECRET='<client-secret>'
-    export DB_URL='mongodb://localhost:27017'
     ```
 
-2. Start the dev server and MongoDB.
+1. Start a MongoDB container.
+    ```
+    docker start mongodb 2>/dev/null \
+    || docker run -d -p 127.0.0.1:27017:27017 --name mongodb mongo:latest
+    ```
+
+1. Start the dev server.
     ```
     npm start
     ```
     This will:
-    * Forward port 27017 of the database service the local kubernetes cluster to localhost:27017
-    * Activate webpack continuous compilation
-    * Serve the backend in continuous development mode
+    * Activate continuous webpack compilation
+    * Serve the webpack output using nodemon
 
 ## How to build the image
 
