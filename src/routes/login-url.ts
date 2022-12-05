@@ -13,7 +13,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     query: ['callback-url']
   };
 
-  (new RequestValidator(requiredParams)).validate(req)
+  (new RequestValidator(requiredParams)).validate(req);
 
   const responseType = 'code';
   const scopes = [
@@ -36,9 +36,9 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     redirect_uri: String(req.query['callback-url']),
     client_id: String(env.get('CLIENT_ID').required().asString()),
     scope: scopes.join(' '),
-    state: String(req.body.state),
+    state: String(req.body?.state),
   }).toString()
   res.json(loginUrl.toString());
-})
+});
 
 export default router;

@@ -52,7 +52,7 @@ export class TokenFactory {
     const {
       access_token: accessToken,
       refresh_token: refreshToken
-    }: any = eveResponse.data
+    }: any = eveResponse.data;
 
     const token = new Token(accessToken, refreshToken)
     console.log(`Generated new access/refresh token pair ${JSON.stringify(token)}.`);
