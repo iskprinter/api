@@ -1,11 +1,21 @@
-import Type from 'src/entities/Type'
+import { Request, RequestHandler, Response } from 'express'
+
+import { Database } from 'src/databases/Database';
+import Type from 'src/models/Type';
 
 class StationTradingController {
+  database: Database;
 
-  async getAllTypes(): Promise<Type[]> {
-    return Type.find({});
-  };
+  constructor(database: Database) {
+    this.database = database;
+  }
 
-};
+  getTypes(query: object): RequestHandler {
+    return async (req: Request, res: Response) => {
+      const types = await this.database.find<Type>(Type.COLLECTION_NAME, query);
+      return res.json(types);
+    }
+  }
+}
 
-export default new StationTradingController();
+export default StationTradingController;

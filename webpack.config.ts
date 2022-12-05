@@ -1,5 +1,4 @@
-const nodeExternals = require('webpack-node-externals')
-const path = require('path')
+import path from 'path'
 
 module.exports = {
   entry: './src/bin/www.ts',

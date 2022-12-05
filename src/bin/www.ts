@@ -7,100 +7,110 @@
 import { AddressInfo } from 'net'
 import env from 'env-var';
 import http from 'http'
-import pino from 'pino'
 
-import app from 'src/app'
-
-// Enable pino logging
-console = pino() as any;
-console.log = (...args) => console.info(...args);
+import createApp from 'src/app'
+import { MongoDatabase } from 'src/databases/MongoDatabase';
+import log from 'src/tools/Logger';
 
 /**
- * Get port from environment and store in Express.
+ * Initialize database connection
  */
+const dbClient = new MongoDatabase()
+dbClient.connect().then((dbClient) => {
 
-const port = normalizePort(String(env.get('PORT').asPortNumber() || 3000));
-app.set('port', port)
+  const app = createApp(dbClient);
 
-/**
- * Create HTTP server.
- */
-
-const server = http.createServer(app)
-
-/**
- * Listen on provided port, on all network interfaces.
- */
-
-server.listen(port)
-server.on('error', onError)
-server.on('listening', onListening)
-
-/**
+  /**
  * Normalize a port into a number, string, or false.
  */
 
-function normalizePort (val: string) {
-  const port = parseInt(val, 10)
+  const normalizePort = (val: string) => {
+    const port = parseInt(val, 10)
 
-  if (isNaN(port)) {
-    // named pipe
-    return val
+    if (isNaN(port)) {
+      // named pipe
+      return val
+    }
+
+    if (port >= 0) {
+      // port number
+      return port
+    }
+
+    return false
   }
 
-  if (port >= 0) {
-    // port number
-    return port
-  }
+  /**
+   * Event listener for HTTP server "error" event.
+   */
 
-  return false
-}
-
-/**
- * Event listener for HTTP server "error" event.
- */
-
-function onError (error: { syscall: string; code: any; }) {
-  if (error.syscall !== 'listen') {
-    throw error
-  }
-
-  const bind = typeof port === 'string'
-    ? 'Pipe ' + port
-    : 'Port ' + port
-
-  // handle specific listen errors with friendly messages
-  switch (error.code) {
-    case 'EACCES':
-      console.error(bind + ' requires elevated privileges')
-      process.exit(1)
-    case 'EADDRINUSE':
-      console.error(bind + ' is already in use')
-      process.exit(1)
-    default:
+  function onError(error: { syscall: string; code: string; }) {
+    if (error.syscall !== 'listen') {
       throw error
+    }
+
+    const bind = typeof port === 'string'
+      ? 'Pipe ' + port
+      : 'Port ' + port
+
+    // handle specific listen errors with friendly messages
+    switch (error.code) {
+      case 'EACCES':
+        log.error(bind + ' requires elevated privileges')
+        process.exit(1)
+        break;
+      case 'EADDRINUSE':
+        log.error(bind + ' is already in use')
+        process.exit(1)
+        break;
+      default:
+        throw error
+    }
   }
-}
 
-/**
- * Exit the process if CTRL+C is pressed.
- */
-process.on('SIGINT', function () {
-  console.log('\nGracefully shutting down from SIGINT (Ctrl+C)')
-  server.close(() => process.exit(0))
-})
+  /**
+   * Get port from environment and store in Express.
+   */
 
-/**
- * Event listener for HTTP server "listening" event.
- */
+  const port = normalizePort(String(env.get('PORT').asPortNumber() || 3000));
+  app.set('port', port)
 
-function onListening () {
-  const addr: string | AddressInfo | null = server.address()
-  if (addr === null) {
-    throw new Error('Server address is null.')
+  /**
+   * Create HTTP server.
+   */
+
+  const server = http.createServer(app)
+
+
+  /**
+   * Listen on provided port, on all network interfaces.
+   */
+
+  server.listen(port)
+  server.on('error', onError)
+  server.on('listening', onListening)
+
+  /**
+   * Exit the process if CTRL+C is pressed.
+   */
+  process.on('SIGINT', function () {
+    log.info('Gracefully shutting down from SIGINT (Ctrl+C)')
+    server.close(() => process.exit(0))
+  })
+
+  /**
+   * Event listener for HTTP server "listening" event.
+   */
+
+  function onListening() {
+    const addr: string | AddressInfo | null = server.address()
+    if (addr === null) {
+      throw new Error('Server address is null.')
+    }
+    const bind = typeof addr === 'string'
+      ? 'pipe ' + addr
+      : 'port ' + addr.port
+    log.info(`Listening on ${bind}...`)
   }
-  const bind = typeof addr === 'string'
-    ? 'pipe ' + addr
-    : 'port ' + addr.port
-  console.log(`Listening on ${bind}...`)
-}
+
+});

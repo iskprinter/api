@@ -1,13 +1,15 @@
-import express, { Request, Response, NextFunction } from 'express'
+import express, { Router } from 'express'
 
-import stationTradingController from 'src/controllers/StationTradingController'
-import Type from 'src/entities/Type'
+import StationTradingController from 'src/controllers/StationTradingController'
+import { Database } from 'src/databases/Database';
 
-const router = express.Router()
+export default function typeRoutes(database: Database): Router {
 
-router.get('/', async (req: Request, res: Response, next: NextFunction) => {
-  const types: Type[] = await stationTradingController.getAllTypes();
-  return res.json(types);
-})
+  const router = express.Router()
+  const stationTradingController = new StationTradingController(database);
 
-export default router
+  router.get('/', stationTradingController.getTypes({}));
+
+  return router;
+
+}

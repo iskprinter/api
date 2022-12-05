@@ -5,6 +5,7 @@ import { Collection } from 'mongodb'
 import { BadRequestError, ResourceNotFoundError, UnauthorizedError } from 'src/errors'
 import { Token } from './Token'
 import { TokenPostRequest } from './TokenRequests'
+import log from 'src/tools/Logger';
 
 export class TokenFactory {
   private static basicAuthHeader (): string {
@@ -46,7 +47,7 @@ export class TokenFactory {
       if (err.response.status === 401) {
         throw new UnauthorizedError()
       }
-      console.error(err);
+      log.error(err);
       throw err;
     }
     const {
@@ -55,7 +56,7 @@ export class TokenFactory {
     }: any = eveResponse.data;
 
     const token = new Token(accessToken, refreshToken)
-    console.log(`Generated new access/refresh token pair ${JSON.stringify(token)}.`);
+    log.info(`Generated new access/refresh token pair ${JSON.stringify(token)}.`);
     await token.save();
     return token;
   }
@@ -63,7 +64,7 @@ export class TokenFactory {
   private async createTokenFromPriorAccessToken (priorAccessToken: string): Promise<Token> {
     // Retrieve the old accessToken:refreshToken pair.
     const priorToken = await Token.withCollection((collection: Collection<any>) => {
-      console.log(`Finding refresh token corresponding to access token ${priorAccessToken}...`);
+      log.info(`Finding refresh token corresponding to access token ${priorAccessToken}...`);
       return collection.findOne({ accessToken: priorAccessToken })
     })
 
@@ -89,7 +90,7 @@ export class TokenFactory {
       eveResponse = await axios.post('https://login.eveonline.com/v2/oauth/token', body.toString(), config)
     } catch (err: any) {
       if (err.response.status === 400 && err.response.data.error === 'invalid_grant') {
-        console.error(err);
+        log.error(err);
         throw new ResourceNotFoundError('The Eve API rejected the refresh token.')
       }
       throw err
@@ -110,4 +111,4 @@ export class TokenFactory {
 
     return token
   }
-};
+}

@@ -1,9 +1,9 @@
-export interface TokenGetRequest { };
+export interface TokenGetRequest { }
 
 export interface TokenPostRequest {
   proofType: string;
   proof: string;
-};
+}
 
 export interface TokenVerificationResponse {
   CharacterID: number;
@@ -13,4 +13,4 @@ export interface TokenVerificationResponse {
   TokenType: string;
   CharacterOwnerHash: string;
   IntellectualProperty: string;
-};
+}
