@@ -5,13 +5,12 @@ import express, { Request, Response, NextFunction } from 'express';
 import expressPinoLogger from 'express-pino-logger';
 
 import indexRoutes from 'src/routes/index';
-import { UnauthorizedError } from './errors';
 import { HttpError } from './errors/HttpError';
 
 const app = express()
 
 // Enable CORS
-app.use(cors({ origin: env.get('FRONTEND_URLS').asString()?.split(",") }))
+app.use(cors({ origin: env.get('FRONTEND_URLS').required().asString()?.split(",") }))
 
 // Enable pino logging
 app.use(expressPinoLogger());
@@ -28,26 +27,21 @@ app.use(async (err: any, req: Request, res: Response, next: NextFunction): Promi
 
   if (!err) {
     console.log(res);
-    return next()
-  }
-
-  if (res.headersSent) {
-    console.error('Got an error, but the respones headers were already sent. Returning...')
-    console.error(err);
-    return next(err);
+    return next();
   }
 
   if (err instanceof HttpError) {
     console.log(`${err.statusCode}: ${err.message}`);
     res.status(err.statusCode).json(err.message);
     console.log(res);
-    return next();
+    return;
   }
 
   console.error('Non-http error received. Returning 500.')
   res.sendStatus(500);
   console.log(res);
-  return next(err);
+  console.error(err);
+  return;
 });
 
 axios.interceptors.request.use(req => {
