@@ -1,7 +1,7 @@
-import { AccessToken } from 'src/entities/AccessToken'
-import { Token } from 'src/entities/Token'
-import { TokenFactory } from 'src/entities/TokenFactory'
-import { TokenPostRequest, TokenVerificationResponse } from 'src/entities/TokenRequests'
+import { AccessToken } from 'src/models/AccessToken'
+import { Token } from 'src/models/Token'
+import { TokenFactory } from 'src/models/TokenFactory'
+import { TokenPostRequest, TokenVerificationResponse } from 'src/models/TokenRequests'
 
 class AuthenticationController {
 
@@ -15,6 +15,6 @@ class AuthenticationController {
     return accessToken.verify();
   }
 
-};
+}
 
 export default new AuthenticationController();

@@ -41,5 +41,5 @@ export class RequestValidator {
       }
     }
     return true
-  };
+  }
 }

@@ -1,57 +1,66 @@
 import axios from 'axios';
 import cors from 'cors';
 import env from 'env-var';
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import expressPinoLogger from 'express-pino-logger';
+import { Database } from 'src/databases/Database';
 
 import indexRoutes from 'src/routes/index';
-import { HttpError } from './errors/HttpError';
+import { HttpError } from 'src/errors/HttpError';
+import log from 'src/tools/Logger';
 
-const app = express()
+function createApp(database: Database): Application {
 
-// Enable CORS
-app.use(cors({ origin: env.get('FRONTEND_URLS').required().asString()?.split(",") }))
+  const app = express()
 
-// Enable pino logging
-app.use(expressPinoLogger());
+  // Enable CORS
+  app.use(cors({ origin: env.get('FRONTEND_URLS').required().asString()?.split(",") }));
 
-// Enable body parsing
-app.use(express.json())
-app.use(express.urlencoded({ extended: false }))
+  // Enable pino logging
+  app.use(expressPinoLogger());
 
-// Load the application routes
-app.use('/', indexRoutes)
+  // Enable body parsing
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: false }));
 
-app.use(async (err: any, req: Request, res: Response, next: NextFunction): Promise<void> => {
-  console.log(req);
+  // Load the application routes
+  app.use('/', indexRoutes(database));
 
-  if (!err) {
-    console.log(res);
-    return next();
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.use(async (err: any, req: Request, res: Response, next: NextFunction): Promise<void> => {
+    log.info(req);
 
-  if (err instanceof HttpError) {
-    console.log(`${err.statusCode}: ${err.message}`);
-    res.status(err.statusCode).json(err.message);
-    console.log(res);
+    if (!err) {
+      log.info(res);
+      return next();
+    }
+
+    if (err instanceof HttpError) {
+      log.info(`${err.statusCode}: ${err.message}`);
+      res.status(err.statusCode).json(err.message);
+      log.info(res);
+      return;
+    }
+
+    log.error('Non-http error received. Returning 500.')
+    res.sendStatus(500);
+    log.info(res);
+    log.error(err);
     return;
-  }
+  });
 
-  console.error('Non-http error received. Returning 500.')
-  res.sendStatus(500);
-  console.log(res);
-  console.error(err);
-  return;
-});
+  axios.interceptors.request.use(req => {
+    log.info(req);
+    return req;
+  })
 
-axios.interceptors.request.use(req => {
-  console.log(req);
-  return req;
-})
+  axios.interceptors.response.use(res => {
+    log.info(res);
+    return res;
+  })
 
-axios.interceptors.response.use(res => {
-  console.log(res);
-  return res;
-})
+  return app;
 
-export default app;
+}
+
+export default createApp;
