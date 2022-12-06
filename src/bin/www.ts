@@ -9,7 +9,7 @@ import env from 'env-var';
 import http from 'http'
 
 import createApp from 'src/app'
-import { MongoDatabase } from 'src/databases/MongoDatabase';
+import { MongoDatabase } from 'src/databases';
 import log from 'src/tools/Logger';
 
 /**

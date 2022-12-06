@@ -1,14 +1,12 @@
 import express, { Router } from 'express'
 
-import StationTradingController from 'src/controllers/StationTradingController'
-import { Database } from 'src/databases/Database';
+import { StationTradingController } from 'src/controllers'
 
-export default function typeRoutes(database: Database): Router {
+export default function typeRoutes(stationTradingController: StationTradingController): Router {
 
   const router = express.Router()
-  const stationTradingController = new StationTradingController(database);
 
-  router.get('/', stationTradingController.getTypes({}));
+  router.get('/', stationTradingController.getAllTypes());
 
   return router;
 

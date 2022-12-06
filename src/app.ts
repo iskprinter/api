@@ -3,10 +3,10 @@ import cors from 'cors';
 import env from 'env-var';
 import express, { Application, Request, Response, NextFunction } from 'express';
 import expressPinoLogger from 'express-pino-logger';
-import { Database } from 'src/databases/Database';
+import { Database } from 'src/databases';
 
 import indexRoutes from 'src/routes/index';
-import { HttpError } from 'src/errors/HttpError';
+import { HttpError } from 'src/errors';
 import log from 'src/tools/Logger';
 
 function createApp(database: Database): Application {

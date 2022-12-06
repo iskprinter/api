@@ -2,7 +2,7 @@ import axios from 'axios'
 import { UnauthorizedError } from 'src/errors'
 import { TokenVerificationResponse } from './TokenRequests'
 
-export class AccessToken {
+export default class AccessToken {
   
   tokenString: string;
 
