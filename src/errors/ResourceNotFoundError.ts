@@ -1,6 +1,6 @@
-import { HttpError } from 'src/errors/HttpError'
+import HttpError from './HttpError'
 
-export class ResourceNotFoundError extends HttpError {
+export default class ResourceNotFoundError extends HttpError {
   static readonly STATUS_CODE = 404;
 
   constructor (message: string) {

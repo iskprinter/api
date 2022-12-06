@@ -1,10 +1,9 @@
 import { Request, RequestHandler, Response } from 'express';
 import { Collection } from 'src/databases';
-import { BadRequestError } from 'src/errors';
+import { BadRequestError, ResourceNotFoundError } from 'src/errors';
 import {
   AccessToken,
   Token,
-  TokenFactory,
   TokenPostRequest,
   TokenVerificationResponse
 } from 'src/models'
@@ -26,8 +25,27 @@ class AuthenticationController {
     return async (req: Request, res: Response) => {
       const tokenRequest: TokenPostRequest = req.body
       log.info(`Creating token for tokenRequest ${JSON.stringify(tokenRequest)}...`);
-      const tf = new TokenFactory();
-      const token: Token = await tf.createToken(tokenRequest);
+      let token: Token;
+      switch (tokenRequest.proofType) {
+        case 'authorizationCode': {
+          token = await this.tokenService.createTokenFromAuthorizationCode(tokenRequest.proof)
+          break;
+        }
+        case 'priorAccessToken': {
+          const priorAccessToken = tokenRequest.proof;
+          const priorToken = await this.tokensCollection.findOne({ accessToken: priorAccessToken });
+          if (!priorToken) {
+            throw new ResourceNotFoundError(`Did not find a matching entry for access token ${priorAccessToken}.`)
+          }
+          token = await this.tokenService.createTokenFromPriorAccessToken(priorToken)
+          // Clean up the old token
+          await this.tokensCollection.deleteOne({ accessToken: priorAccessToken });
+          break;
+        }
+        default:
+          throw new BadRequestError("Expected 'grantType' to be either 'authorizationCode' or 'priorAccessToken'.")
+      }
+
       log.info(`Successfully created token for tokenRequest ${JSON.stringify(tokenRequest)}.`);
       return res.json(token.accessToken)
     }

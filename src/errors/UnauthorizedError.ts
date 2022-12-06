@@ -1,6 +1,6 @@
-import { HttpError } from 'src/errors/HttpError'
+import HttpError from './HttpError'
 
-export class UnauthorizedError extends HttpError {
+export default class UnauthorizedError extends HttpError {
   static readonly STATUS_CODE = 401;
 
   constructor (message?: string) {

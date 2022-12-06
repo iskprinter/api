@@ -1,4 +1,4 @@
-import express, { Request, Router } from 'express'
+import express, { NextFunction, Request, Response, Router } from 'express'
 
 import { RequestValidator } from 'src/tools/RequestValidator'
 import { AuthenticationController } from 'src/controllers'
@@ -11,7 +11,7 @@ export default function tokenRoutes(authenticationController: AuthenticationCont
   router.get('/', authenticationController.verifyToken());
 
   router.post('/',
-    async (req: Request) => {
+    async (req: Request, res: Response, next: NextFunction) => {
       log.info('Validating request to POST /tokens...');
       (new RequestValidator({
         body: [
@@ -21,6 +21,7 @@ export default function tokenRoutes(authenticationController: AuthenticationCont
         query: []
       })).validate(req);
       log.info('Successfully validated request to POST /tokens.');
+      next();
     },
     authenticationController.getToken()
   )

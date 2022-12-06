@@ -6,7 +6,7 @@ import expressPinoLogger from 'express-pino-logger';
 import { Database } from 'src/databases';
 
 import indexRoutes from 'src/routes/index';
-import { HttpError } from 'src/errors/HttpError';
+import { HttpError } from 'src/errors';
 import log from 'src/tools/Logger';
 
 function createApp(database: Database): Application {
