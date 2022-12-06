@@ -5,13 +5,14 @@ import {
   AuthenticationController,
   HealthcheckController,
   StationTradingController,
-} from 'src/controllers'
+} from 'src/controllers';
 import tokenRoutes from 'src/routes/tokens';
 import typeRoutes from 'src/routes/types';
 import {
   Token,
   Type
 } from 'src/models';
+import { TokenService } from 'src/services';
 
 export default function indexRoutes(database: Database): Router {
 
@@ -20,7 +21,9 @@ export default function indexRoutes(database: Database): Router {
   const typesCollection = database.getCollection<Type>('types');
   const tokensCollection = database.getCollection<Token>('tokens');
 
-  const authenticationController = new AuthenticationController(tokensCollection);
+  const tokenService = new TokenService();
+
+  const authenticationController = new AuthenticationController(tokensCollection, tokenService);
   const healthcheckController = new HealthcheckController();
   const stationTradingController = new StationTradingController(typesCollection);
 
