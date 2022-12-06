@@ -3,11 +3,11 @@ import env from 'env-var';
 import { Collection } from 'mongodb'
 
 import { BadRequestError, ResourceNotFoundError, UnauthorizedError } from 'src/errors'
-import { Token } from './Token'
+import Token from './Token'
 import { TokenPostRequest } from './TokenRequests'
 import log from 'src/tools/Logger';
 
-export class TokenFactory {
+export default class TokenFactory {
   private static basicAuthHeader (): string {
     const clientId = env.get('CLIENT_ID').required().asString();
     const clientSecret = env.get('CLIENT_SECRET').required().asString();

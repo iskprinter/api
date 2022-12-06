@@ -1,17 +1,15 @@
 import express, { Request, Response, Router } from 'express'
 
 import { RequiredParams, RequestValidator } from 'src/tools/RequestValidator'
-import AuthenticationController from 'src/controllers/AuthenticationController'
-import { Token } from 'src/models/Token'
+import { AuthenticationController}  from 'src/controllers'
+import { Token } from 'src/models'
 import { TokenPostRequest, TokenVerificationResponse } from 'src/models/TokenRequests'
 import { BadRequestError } from 'src/errors/BadRequestError'
-import { Database } from 'src/databases/Database'
 import log from 'src/tools/Logger';
 
-export default function tokenRoutes(database: Database): Router {
+export default function tokenRoutes(authenticationController: AuthenticationController): Router {
 
   const router = express.Router()
-  const authenticationController = new AuthenticationController(database);
 
   router.get('/', async (req: Request, res: Response) => {
     if (!req.headers.authorization && !req.headers.Authorization) {

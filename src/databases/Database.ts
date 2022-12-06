@@ -1,4 +1,6 @@
-export interface Database {
-    connect(): Promise<Database>,
-    find<T>(collectionName: string, query: object): Promise<Array<T>>,
+import Collection from './Collection';
+
+export default interface Database {
+  connect(): Promise<Database>;
+  getCollection<T>(collectionName: string): Collection<T>;
 }

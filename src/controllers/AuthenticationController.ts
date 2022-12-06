@@ -1,16 +1,19 @@
-import { Database } from 'src/databases/Database';
-import { AccessToken } from 'src/models/AccessToken'
-import { Token } from 'src/models/Token'
-import { TokenFactory } from 'src/models/TokenFactory'
-import { TokenPostRequest, TokenVerificationResponse } from 'src/models/TokenRequests'
+import { Collection } from 'src/databases';
+import {
+  AccessToken,
+  Token,
+  TokenFactory,
+  TokenPostRequest,
+  TokenVerificationResponse
+} from 'src/models'
 
 class AuthenticationController {
 
   static LOGIN_SERVER_DOMAIN_NAME = 'login.eveonline.com'
-  database: Database;
+  tokensCollection: Collection<Token>;
 
-  constructor(database: Database) {
-    this.database = database;
+  constructor(tokensCollection: Collection<Token>) {
+    this.tokensCollection = tokensCollection;
   }
 
   async getToken(tokenRequest: TokenPostRequest): Promise<Token> {

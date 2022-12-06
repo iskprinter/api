@@ -1,19 +1,33 @@
-import express, { Request, Response, Router } from 'express';
-import { Database } from 'src/databases/Database';
+import express, { Router } from 'express';
 
+import { Database } from 'src/databases';
+import {
+  AuthenticationController,
+  HealthcheckController,
+  StationTradingController,
+} from 'src/controllers'
 import tokenRoutes from 'src/routes/tokens';
 import typeRoutes from 'src/routes/types';
+import {
+  Token,
+  Type
+} from 'src/models';
 
 export default function indexRoutes(database: Database): Router {
 
   const router = express.Router();
 
-  router.use('/tokens', tokenRoutes(database));
-  router.use('/types', typeRoutes(database));
+  const typesCollection = database.getCollection<Type>('types');
+  const tokensCollection = database.getCollection<Token>('tokens');
 
-  router.get('/', async (req: Request, res: Response) => {
-    res.sendStatus(200);
-  });
+  const authenticationController = new AuthenticationController(tokensCollection);
+  const healthcheckController = new HealthcheckController();
+  const stationTradingController = new StationTradingController(typesCollection);
+
+  router.use('/tokens', tokenRoutes(authenticationController));
+  router.use('/types', typeRoutes(stationTradingController));
+
+  router.get('/', healthcheckController.announceHealth());
 
   return router;
 }

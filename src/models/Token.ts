@@ -1,11 +1,11 @@
 import env from 'env-var';
 import { MongoClient, Collection } from 'mongodb'
 
-import { PersistentEntity } from 'src/models/PersistentEntity'
+import PersistentEntity from './PersistentEntity'
 import log from 'src/tools/Logger';
 
 
-export class Token implements PersistentEntity {
+export default class Token implements PersistentEntity {
   static DB_NAME = 'iskprinter';
   static COLLECTION_NAME = 'tokens';
 
