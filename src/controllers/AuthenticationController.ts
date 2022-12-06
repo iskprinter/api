@@ -6,14 +6,17 @@ import {
   TokenPostRequest,
   TokenVerificationResponse
 } from 'src/models'
+import { TokenService } from 'src/services';
 
 class AuthenticationController {
 
   static LOGIN_SERVER_DOMAIN_NAME = 'login.eveonline.com'
   tokensCollection: Collection<Token>;
+  tokenService: TokenService;
 
-  constructor(tokensCollection: Collection<Token>) {
+  constructor(tokensCollection: Collection<Token>, tokenService: TokenService) {
     this.tokensCollection = tokensCollection;
+    this.tokenService = tokenService;
   }
 
   async getToken(tokenRequest: TokenPostRequest): Promise<Token> {
