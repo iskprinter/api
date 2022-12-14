@@ -1,7 +1,7 @@
 import path from 'path'
 
 module.exports = {
-  entry: './src/bin/www.ts',
+  entry: './src/app.ts',
   devtool: 'source-map',
   mode: 'production',
   module: {

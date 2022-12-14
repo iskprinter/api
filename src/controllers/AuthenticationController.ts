@@ -11,15 +11,11 @@ import { TokenService } from 'src/services';
 import log from 'src/tools/Logger';
 
 class AuthenticationController {
-
   static LOGIN_SERVER_DOMAIN_NAME = 'login.eveonline.com'
-  tokensCollection: Collection<Token>;
-  tokenService: TokenService;
-
-  constructor(tokensCollection: Collection<Token>, tokenService: TokenService) {
-    this.tokensCollection = tokensCollection;
-    this.tokenService = tokenService;
-  }
+  constructor(
+    public tokensCollection: Collection<Token>,
+    public tokenService: TokenService
+  ) { }
 
   getToken(): RequestHandler {
     return async (req: Request, res: Response) => {

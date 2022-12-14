@@ -1,4 +1,4 @@
-import mongodb, { OptionalId } from 'mongodb';
+import mongodb, { Document, Filter, OptionalId } from 'mongodb';
 import Collection from './Collection';
 
 export default class MongoCollection<T> implements Collection<T> {
@@ -32,6 +32,33 @@ export default class MongoCollection<T> implements Collection<T> {
   async insertOne(document: T): Promise<T> {
     const result = await this.collection.insertOne(document as OptionalId<Document>);
     return this.collection.findOne({ _id: result.insertedId }) as T
+  }
+
+  async putMany(documents: Array<T>): Promise<Array<T>> {
+    for (const document of documents) {
+      await this.collection.updateOne(
+        document as OptionalId<Document>,
+        { $set: document},
+        { upsert: true }
+      );
+    }
+    const insertedDocs = new Array<T>();
+    for (const document of documents) {
+      const insertedDoc = await this.collection.findOne(
+        document as OptionalId<Document>
+      );
+      insertedDocs.push(insertedDoc as T);
+    }
+    return insertedDocs;
+  }
+
+  async updateOne(query: object, document: Partial<T>): Promise<T> {
+    const updateResult = await this.collection.updateOne(
+      query,
+      { $set: document },
+      {upsert: true}
+    );
+    return this.collection.findOne({ _id: updateResult.upsertedId }) as T;
   }
 
 }

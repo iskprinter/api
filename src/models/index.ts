@@ -1,4 +1,6 @@
 import AccessToken from './AccessToken';
+import EsiRequest from './EsiRequest';
+import Group from './Group';
 import PersistentEntity from './PersistentEntity';
 import Token from './Token';
 import {
@@ -10,6 +12,8 @@ import Type from './Type';
 
 export {
   AccessToken,
+  EsiRequest,
+  Group,
   PersistentEntity,
   Token,
   TokenGetRequest,

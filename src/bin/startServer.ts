@@ -8,21 +8,14 @@ import { AddressInfo } from 'net'
 import env from 'env-var';
 import http from 'http'
 
-import createApp from 'src/app'
-import { MongoDatabase } from 'src/databases';
 import log from 'src/tools/Logger';
+import { Application } from 'express';
 
-/**
- * Initialize database connection
- */
-const dbClient = new MongoDatabase()
-dbClient.connect().then((dbClient) => {
-
-  const app = createApp(dbClient);
+export default function startServer(app: Application): void {
 
   /**
- * Normalize a port into a number, string, or false.
- */
+   * Normalize a port into a number, string, or false.
+   */
 
   const normalizePort = (val: string) => {
     const port = parseInt(val, 10)
@@ -50,17 +43,17 @@ dbClient.connect().then((dbClient) => {
     }
 
     const bind = typeof port === 'string'
-      ? 'Pipe ' + port
-      : 'Port ' + port
+      ? `Pipe ${port}`
+      : `Port ${port}`
 
     // handle specific listen errors with friendly messages
     switch (error.code) {
       case 'EACCES':
-        log.error(bind + ' requires elevated privileges')
+        log.error(`${bind} requires elevated privileges`)
         process.exit(1)
         break;
       case 'EADDRINUSE':
-        log.error(bind + ' is already in use')
+        log.error(`${bind} is already in use`)
         process.exit(1)
         break;
       default:
@@ -108,9 +101,9 @@ dbClient.connect().then((dbClient) => {
       throw new Error('Server address is null.')
     }
     const bind = typeof addr === 'string'
-      ? 'pipe ' + addr
-      : 'port ' + addr.port
+      ? `pipe ${addr}`
+      : `port ${addr.port}`
     log.info(`Listening on ${bind}...`)
   }
 
-});
+}

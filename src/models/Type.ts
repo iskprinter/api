@@ -1,3 +1,3 @@
-export default class Type {
-  static COLLECTION_NAME = 'types';
+export default interface Type {
+    type_id: number
 }

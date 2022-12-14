@@ -19,6 +19,7 @@ export default class AccessToken {
     let eveResponse;
     try {
       eveResponse = await axios.get<TokenVerificationResponse>('https://login.eveonline.com/oauth/verify', config);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err.response.status === 401) {
         throw new UnauthorizedError();
