@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { Request, RequestHandler, Response } from 'express'
 
 import { Collection } from 'src/databases';
@@ -21,12 +20,7 @@ class StationTradingController {
       const groups = await this.groupsCollection.find({});
       res.json({ groups });
 
-      const path = '/markets/groups';
-      await this.esiService.getData<Array<number>>({ path }, async (market_group_ids) => {
-        log.info(`Storing response data for path '${path}'...`);
-        await this.groupsCollection.putMany(market_group_ids.map((market_group_id) => ({ market_group_id })));
-      });
-
+      return this._refreshMarketGroups();
     }
   }
 
@@ -38,33 +32,46 @@ class StationTradingController {
       const group = await this.groupsCollection.findOne(query);
       res.json({ group });
 
-      const path = `/markets/groups/${req.params.marketGroupId}`;
-      await this.esiService.getData<Group>({ path }, async (group) => {
-        log.info(`Storing response data for path '${path}'...`);
-        await this.groupsCollection.updateOne(
-          { market_group_id: group.market_group_id },
-          group
-        );
-        await this.typesCollection.putMany(group.types.map((type) => ({ type_id: type })));
-      });
+      return this._refreshMarketGroup(Number(req.params.marketGroupId));
 
     }
   }
 
   getTypes(): RequestHandler {
     return async (req: Request, res: Response) => {
-
-      const types = await this.typesCollection.findOne({});
+      const types = await this.typesCollection.find({});
       res.json({ types });
-
+      (await this._refreshMarketGroups()).map((async (group) => {
+        return this._refreshMarketGroup(group.market_group_id);
+      }))
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  _withoutObjectId(object: any) {
-    delete object._id;
-    return object;
+  async _refreshMarketGroup(marketGroupId: number): Promise<Group> {
+    const path = `/markets/groups/${marketGroupId}`;
+    if (await this.esiService.dataIsFresh({ path })) {
+      return this.groupsCollection.findOne({ market_group_id: marketGroupId });
+    }
+    const freshGroup = await this.esiService.getData<Group>({ path });
+    log.info(`Storing response data for path '${path}'...`);
+    const group = await this.groupsCollection.updateOne(
+      { market_group_id: freshGroup.market_group_id },
+      freshGroup,
+    );
+    await this.typesCollection.putMany(freshGroup.types.map((type) => ({ type_id: type })));
+    return group;
   }
+  
+  async _refreshMarketGroups(): Promise<Group[]> {
+    const path = '/markets/groups';
+    if (await this.esiService.dataIsFresh({ path })) {
+      return this.groupsCollection.find({});
+    }
+    const marketGroupIds = await this.esiService.getData<Array<number>>({ path });
+    log.info(`Storing response data for path '${path}'...`);
+    return this.groupsCollection.putMany(marketGroupIds.map((marketGroupId) => ({ market_group_id: marketGroupId })));
+  }
+
 }
 
 export default StationTradingController;

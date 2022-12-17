@@ -1,4 +1,4 @@
-import axios from 'axios'
+import requester from 'src/tools/Requester';
 import env from 'env-var';
 
 import {
@@ -32,7 +32,7 @@ export default class TokenService {
         grant_type: 'authorization_code',
         code
       });
-      const eveResponse = await axios.post('https://login.eveonline.com/v2/oauth/token', body.toString(), config);
+      const eveResponse = await requester.post('https://login.eveonline.com/v2/oauth/token', body.toString(), config);
       const {
         access_token: accessToken,
         refresh_token: refreshToken
@@ -68,7 +68,7 @@ export default class TokenService {
 
     let eveResponse
     try {
-      eveResponse = await axios.post('https://login.eveonline.com/v2/oauth/token', body.toString(), config)
+      eveResponse = await requester.post('https://login.eveonline.com/v2/oauth/token', body.toString(), config)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       if (err.response.status === 400 && err.response.data.error === 'invalid_grant') {

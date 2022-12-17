@@ -1,4 +1,3 @@
-import axios from 'axios';
 import cors from 'cors';
 import env from 'env-var';
 import express, { Request, Response, NextFunction } from 'express';
@@ -81,16 +80,6 @@ async function main(): Promise<void> {
     log.error(err);
     return;
   });
-
-  axios.interceptors.request.use((req) => {
-    log.info(req);
-    return req;
-  })
-
-  axios.interceptors.response.use((res) => {
-    log.info(res);
-    return res;
-  })
 
   startServer(app);
 
