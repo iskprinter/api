@@ -8,6 +8,7 @@ const axiosAgent = axios.create({
         maxSockets: 8,
     }),
 });
+
 axiosAgent.interceptors.request.use((req) => {
     log.info({
         baseURL: req.baseURL,

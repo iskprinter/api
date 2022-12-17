@@ -13,52 +13,55 @@ export default class EsiService {
       // Lock the EsiRequest document.
       log.info(`Locking request path '${path}'...`);
       return this._lockRequest({ path })
-        .then(() => {
+        .then(async () => {
           // Lazily (eventually) update the data in the database.
           log.info(`Getting path '${path}'...`);
-          return requester.get<T>(`https://esi.evetech.net/latest${path}`)
+          try {
+            const esiResponse = await requester.get<T>(`https://esi.evetech.net/latest${path}`)
+            resolve(esiResponse.data);
+            await this._setExpiry({ path }, Date.parse(esiResponse.headers.expires as string));
+          } finally {
+            log.info(`Unlocking request path '${path}'...`);
+            await this._unlockRequest({ path });
+          }
         })
-        .then((esiResponse) => {
-          resolve(esiResponse.data);
-          // Unlock the EsiRequest collection and store the expiration time.
-          log.info(`Storing expiration time for path '${path}'...`);
-          return this._setExpiry({ path }, Date.parse(esiResponse.headers.expires as string));        })
-        .catch((err) => reject(err))
-        .finally(() => {
-          // Unlock the EsiRequest collection and store the expiration time.
-          log.info(`Unlocking request path '${path}'...`);
-          return this._unlockRequest({ path });
-        });
+        .catch((err) => reject(err));
 
     });
   }
 
-  async dataIsFresh({ path }: { path: string }): Promise < boolean > {
-      const ongoingRequests = await this.esiRequestCollection.find({ path });
-      const dataIsFresh =  ongoingRequests.length > 0 && ongoingRequests[0].expires > Date.now();
-      log.info(`Data for request path ${path} is still fresh.`);
-      return dataIsFresh;
-    }
+  async dataIsFresh({ path }: { path: string }): Promise<boolean> {
+    const ongoingRequests = await this.esiRequestCollection.find({ path });
+    const dataIsFresh = ongoingRequests.length > 0 && ongoingRequests[0].expires > Date.now();
+    log.info(`Data for request path ${path} is still fresh.`);
+    return dataIsFresh;
+  }
 
-  async _lockRequest({ path }: { path: string }): Promise < EsiRequest > {
-      return this.esiRequestCollection.updateOne(
-        { path },
-        { inProgress: true }
-      );
-    }
+  async requestIsLocked({ path }: { path: string }): Promise<boolean> {
+    const ongoingRequests = await this.esiRequestCollection.find({ path });
+    const requestIsLocked = ongoingRequests.length > 0 && ongoingRequests[0].inProgress;
+    return requestIsLocked;
+  }
 
-  async _setExpiry({ path }: { path: string }, expires: number): Promise < EsiRequest > {
-      return this.esiRequestCollection.updateOne(
-        { path },
-        { expires }
-      );
-    }
+  async _lockRequest({ path }: { path: string }): Promise<EsiRequest> {
+    return this.esiRequestCollection.updateOne(
+      { path },
+      { inProgress: true }
+    );
+  }
 
-  async _unlockRequest({ path }: { path: string }): Promise < EsiRequest > {
-      return this.esiRequestCollection.updateOne(
-        { path },
-        { inProgress: false }
-      );
-    }
+  async _setExpiry({ path }: { path: string }, expires: number): Promise<EsiRequest> {
+    return this.esiRequestCollection.updateOne(
+      { path },
+      { expires }
+    );
+  }
+
+  async _unlockRequest({ path }: { path: string }): Promise<EsiRequest> {
+    return this.esiRequestCollection.updateOne(
+      { path },
+      { inProgress: false }
+    );
+  }
 
 }
