@@ -1,39 +1,55 @@
 import requester from 'src/tools/Requester';
 import { Collection } from "src/databases";
-import EsiRequest from "src/models/EsiRequest";
 import log from "src/tools/Logger";
+import { EsiRequest, Group } from 'src/models';
+import EsiRequestConfig from './EsiRequestConfig';
 
 export default class EsiService {
 
   constructor(public esiRequestCollection: Collection<EsiRequest>) { }
 
-  async getData<T>({ path }: { path: string }): Promise<T> {
-    return new Promise((resolve, reject) => {
+  async request<T, R>(esiRequestConfig: EsiRequestConfig<T, R>): Promise<R> {
+    const data = await esiRequestConfig.query();
+      /* do not await */ this._refreshData(esiRequestConfig);
+    return data;
+  }
 
-      // Lock the EsiRequest document.
-      log.info(`Locking request path '${path}'...`);
-      return this._lockRequest({ path })
-        .then(async () => {
-          // Lazily (eventually) update the data in the database.
-          log.info(`Getting path '${path}'...`);
-          try {
-            const esiResponse = await requester.get<T>(`https://esi.evetech.net/latest${path}`)
-            resolve(esiResponse.data);
-            await this._setExpiry({ path }, Date.parse(esiResponse.headers.expires as string));
-          } finally {
-            log.info(`Unlocking request path '${path}'...`);
-            await this._unlockRequest({ path });
-          }
-        })
-        .catch((err) => reject(err));
-
-    });
+  async _refreshData<T, R>(esiRequestConfig: EsiRequestConfig<T, R>): Promise<void> {
+    if (await this.dataIsFresh(esiRequestConfig)) {
+      log.info(`Data for request path ${esiRequestConfig.path} is still fresh.`);
+      return;
+    }
+    if (await this.requestIsLocked(esiRequestConfig)) {
+      log.info(`Request path ${esiRequestConfig.path} is locked.`);
+      return;
+    }
+    // Lock the EsiRequest document.
+    log.info(`Locking request path '${esiRequestConfig.path}'...`);
+    await this._lockRequest(esiRequestConfig);
+    log.info(`Getting path '${esiRequestConfig.path}'...`);
+    try {
+      let page = 1;
+      let maxPages = 1;
+      do {
+        const esiResponse = await requester.get<T>(`https://esi.evetech.net/latest${esiRequestConfig.path}`, {
+          ...esiRequestConfig.requestConfig,
+          params: { page }
+        });
+        await this._setExpiry(esiRequestConfig, Date.parse(esiResponse.headers.expires as string));
+        log.info(`Storing response data for path '${esiRequestConfig.path}'...`);
+        await esiRequestConfig.update(esiResponse.data);
+        maxPages = esiResponse.headers['x-pages'] ? Number(esiResponse.headers['x-pages']) : 1;
+        page += 1;
+      } while (page < maxPages)
+    } finally {
+      log.info(`Unlocking request path '${esiRequestConfig.path}'...`);
+      await this._unlockRequest(esiRequestConfig);
+    }
   }
 
   async dataIsFresh({ path }: { path: string }): Promise<boolean> {
     const ongoingRequests = await this.esiRequestCollection.find({ path });
     const dataIsFresh = ongoingRequests.length > 0 && ongoingRequests[0].expires > Date.now();
-    log.info(`Data for request path ${path} is still fresh.`);
     return dataIsFresh;
   }
 
