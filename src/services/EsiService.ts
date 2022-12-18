@@ -1,7 +1,7 @@
 import requester from 'src/tools/Requester';
 import { Collection } from "src/databases";
 import log from "src/tools/Logger";
-import { EsiRequest, Group } from 'src/models';
+import { EsiRequest } from 'src/models';
 import EsiRequestConfig from './EsiRequestConfig';
 
 export default class EsiService {
@@ -28,19 +28,24 @@ export default class EsiService {
     await this._lockRequest(esiRequestConfig);
     log.info(`Getting path '${esiRequestConfig.path}'...`);
     try {
-      let page = 1;
-      let maxPages = 1;
-      do {
-        const esiResponse = await requester.get<T>(`https://esi.evetech.net/latest${esiRequestConfig.path}`, {
-          ...esiRequestConfig.requestConfig,
-          params: { page }
-        });
-        await this._setExpiry(esiRequestConfig, Date.parse(esiResponse.headers.expires as string));
-        log.info(`Storing response data for path '${esiRequestConfig.path}'...`);
-        await esiRequestConfig.update(esiResponse.data);
-        maxPages = esiResponse.headers['x-pages'] ? Number(esiResponse.headers['x-pages']) : 1;
-        page += 1;
-      } while (page < maxPages)
+      // Get the total number of pages
+      const headResponse = await requester.head<T>(`https://esi.evetech.net/latest${esiRequestConfig.path}`, esiRequestConfig.requestConfig);
+      let maxPages = headResponse.headers['x-pages'] ? Number(headResponse.headers['x-pages']) : 1;
+      const pageRequests = [];
+      for (let page = 1; page <= maxPages; page += 1) {
+        pageRequests.push((async () => {
+          const esiResponse = await requester.get<T>(`https://esi.evetech.net/latest${esiRequestConfig.path}`, {
+            ...esiRequestConfig.requestConfig,
+            params: { page }
+          });
+          await this._setExpiry(esiRequestConfig, Date.parse(esiResponse.headers.expires as string));
+          log.info(`Storing response data for path '${esiRequestConfig.path}'...`);
+          await esiRequestConfig.update(esiResponse.data);
+          maxPages = esiResponse.headers['x-pages'] ? Number(esiResponse.headers['x-pages']) : 1;
+          page += 1;
+        })());
+      }
+      await Promise.all(pageRequests);
     } finally {
       log.info(`Unlocking request path '${esiRequestConfig.path}'...`);
       await this._unlockRequest(esiRequestConfig);

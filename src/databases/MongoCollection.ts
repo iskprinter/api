@@ -1,4 +1,4 @@
-import mongodb, { Document, Filter, OptionalId } from 'mongodb';
+import mongodb, { Document, OptionalId } from 'mongodb';
 import Collection from './Collection';
 
 export default class MongoCollection<T> implements Collection<T> {
