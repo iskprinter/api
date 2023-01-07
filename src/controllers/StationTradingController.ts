@@ -1,8 +1,9 @@
 import { Request, RequestHandler, Response } from 'express'
 
 import { Collection } from 'src/databases';
-import { EsiRequest, Group, Type } from 'src/models';
+import { Deal, EsiRequest, Group, Type } from 'src/models';
 import { EsiRequestConfig, EsiService } from 'src/services';
+import { DealFinder } from 'src/services';
 
 class StationTradingController {
   constructor(
@@ -11,6 +12,15 @@ class StationTradingController {
     public groupsCollection: Collection<Group>,
     public typesCollection: Collection<Type>
   ) { }
+
+  getDeals(): RequestHandler {
+    return async (req: Request, res: Response) => {
+      const deals: Deal[] = [{
+        typeName: 'Tritanium'
+      }];
+      return res.json({ deals });
+    };
+  }
 
   getMarketGroups(): RequestHandler {
     return async (req: Request, res: Response) => {
@@ -23,7 +33,7 @@ class StationTradingController {
       };
       const groups = await this.esiService.request(esiRequestConfig);
       return res.json({ groups });
-    }
+    };
   }
 
   getMarketGroup(): RequestHandler {

@@ -1,4 +1,5 @@
 import AccessToken from './AccessToken';
+import Deal from './Deal';
 import EsiRequest from './EsiRequest';
 import Group from './Group';
 import PersistentEntity from './PersistentEntity';
@@ -12,6 +13,7 @@ import Type from './Type';
 
 export {
   AccessToken,
+  Deal,
   EsiRequest,
   Group,
   PersistentEntity,
