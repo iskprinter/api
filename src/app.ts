@@ -9,7 +9,7 @@ import indexRoutes from 'src/routes/index';
 import { HttpError } from 'src/errors';
 import log from 'src/tools/Logger';
 import { Group, Token, Type } from 'src/models';
-import { TokenService } from 'src/services';
+import { DataProxy, TokenService } from 'src/services';
 import { AuthenticationController, HealthcheckController, StationTradingController } from './controllers';
 import EsiService from './services/EsiService';
 import EsiRequest from './models/EsiRequest';
@@ -40,14 +40,19 @@ async function main(): Promise<void> {
   // Load Services
   const tokenService = new TokenService();
   const esiRequestService = new EsiService(esiRequestCollection);
+  const dataProxy = new DataProxy(
+    esiRequestService,
+    groupsCollection,
+    typesCollection,
+  );
 
   // Load Controllers
   const authenticationController = new AuthenticationController(tokensCollection, tokenService);
   const healthcheckController = new HealthcheckController();
   const stationTradingController = new StationTradingController(
+    dataProxy,
     esiRequestService,
     esiRequestCollection,
-    groupsCollection,
     typesCollection
   );
 

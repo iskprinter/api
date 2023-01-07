@@ -3,6 +3,7 @@ import { Collection } from "src/databases";
 import log from "src/tools/Logger";
 import { EsiRequest } from 'src/models';
 import EsiRequestConfig from './EsiRequestConfig';
+import { AxiosError } from 'axios';
 
 export default class EsiService {
 
@@ -46,6 +47,12 @@ export default class EsiService {
         })());
       }
       await Promise.all(pageRequests);
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        if (err.response?.status === 404) {
+          log.warn(err.message);
+        }
+      }
     } finally {
       log.info(`Unlocking request path '${esiRequestConfig.path}'...`);
       await this._unlockRequest(esiRequestConfig);
