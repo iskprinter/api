@@ -28,47 +28,47 @@ export default class EsiService {
       return;
     }
 
-    // Submit a head request to check the etag, update the expiration, and get the number of pages.
-    const headRequestConfig = esiRequestConfig.requestConfig || {};
-    if (priorRequest && priorRequest.etag) {
-      if (!headRequestConfig.headers) {
-        headRequestConfig.headers = {};
-      }
-      headRequestConfig.headers['if-none-match'] = priorRequest.etag
-    }
-    const headResponse = await requester.head<T>(`https://esi.evetech.net/latest${esiRequestConfig.path}`, headRequestConfig);
-    if (headResponse.status === 304) {
-      log.info(`Data for request path ${esiRequestConfig.path} is unchanged.`);
-      await this._setExpiryAndEtag(esiRequestConfig, {
-        expires: headResponse.headers.expires as string,
-      });
-      return;
-    }
-    let maxPages = headResponse.headers['x-pages'] ? Number(headResponse.headers['x-pages']) : 1;
-
     // Lock the EsiRequest document.
     log.info(`Locking request path '${esiRequestConfig.path}'...`);
     await this._lockRequest(esiRequestConfig);
     log.info(`Getting path '${esiRequestConfig.path}'...`);
 
     try {
-      const pageRequests = [];
-      for (let page = 1; page <= maxPages; page += 1) {
-        pageRequests.push((async () => {
+      const esiResponse = await requester.get<T>(`https://esi.evetech.net/latest${esiRequestConfig.path}`, {
+        ...esiRequestConfig.requestConfig,
+        headers: {
+          ...esiRequestConfig.requestConfig?.headers,
+          'if-none-match': priorRequest.etag,
+        },
+        params: { page: 1 }
+      });
+      if (esiResponse.status === 304) {
+        log.info(`Data for request path ${esiRequestConfig.path} is unchanged.`);
+        await this._setExpiryAndEtag(esiRequestConfig, {
+          expires: esiResponse.headers.expires as string,
+        });
+        return;
+      }
+
+      log.info(`Storing response data for path '${esiRequestConfig.path}' page 1...`);
+      await esiRequestConfig.update(esiResponse.data);
+      const maxPages = esiResponse.headers['x-pages'] ? Number(esiResponse.headers['x-pages']) : 1;
+
+      const requestPromises = [];
+      for (let page = 2; page <= maxPages; page += 1) {
+        requestPromises.push((async () => {
           const esiResponse = await requester.get<T>(`https://esi.evetech.net/latest${esiRequestConfig.path}`, {
             ...esiRequestConfig.requestConfig,
             params: { page }
           });
-          log.info(`Storing response data for path '${esiRequestConfig.path}'...`);
+          log.info(`Storing response data for path '${esiRequestConfig.path}' page ${page}...`);
           await esiRequestConfig.update(esiResponse.data);
-          maxPages = esiResponse.headers['x-pages'] ? Number(esiResponse.headers['x-pages']) : 1;
-          page += 1;
         })());
       }
-      await Promise.all(pageRequests);
+      await Promise.all(requestPromises);
       await this._setExpiryAndEtag(esiRequestConfig, {
-        expires: headResponse.headers.expires as string,
-        etag: headResponse.headers.etag as string,
+        expires: esiResponse.headers.expires as string,
+        etag: esiResponse.headers.etag as string,
       });
     } catch (err) {
       if (err instanceof AxiosError) {
