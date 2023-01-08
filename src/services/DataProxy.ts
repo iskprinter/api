@@ -1,6 +1,8 @@
 import { Collection } from "src/databases";
 import { Group, Region, System, Type } from "src/models";
 import Constellation from "src/models/Constellation";
+import { Station } from "src/models/Station";
+import { Structure } from "src/models/Structure";
 import { EsiRequestConfig, EsiService } from "src/services";
 
 export default class DataProxy {
@@ -9,6 +11,8 @@ export default class DataProxy {
     public esiService: EsiService,
     public groupsCollection: Collection<Group>,
     public regionsCollection: Collection<Region>,
+    public stationsCollection: Collection<Station>,
+    public structuresCollection: Collection<Structure>,
     public systemsCollection: Collection<System>,
     public typesCollection: Collection<Type>,
   ) { }
@@ -86,6 +90,49 @@ export default class DataProxy {
     };
     const regionIds = await this.esiService.request(esiRequestConfig);
     return regionIds;
+  }
+
+  async getStation(stationId: number): Promise<Station> {
+    const esiRequestConfig: EsiRequestConfig<Station> = {
+      query: async () => (await this.stationsCollection.findOne({ station_id: stationId})),
+      path: `/universe/stations/${stationId}`,
+      update: async (station) => {
+        await this.stationsCollection.updateOne({ station_id: station.station_id }, station);
+        return station;
+      }
+    };
+    const station = await this.esiService.request(esiRequestConfig);
+    return station;
+  }
+
+  async getStructure(authorization: string, structureId: number): Promise<Structure> {
+    const esiRequestConfig: EsiRequestConfig<Structure> = {
+      query: async () => (await this.structuresCollection.findOne({ structure_id: structureId})),
+      path: `/universe/structures/${structureId}`,
+      requestConfig: { headers: { authorization } },
+      update: async (structure) => {
+        if (structure.structure_id === null) {
+          throw new Error(`Got structure with null structure ID: ${JSON.stringify(structure)}`)
+        }
+        await this.structuresCollection.updateOne({ structure_id: structureId }, structure); // 'structure' lacks a structure_id
+        return structure;
+      }
+    };
+    const structure = await this.esiService.request(esiRequestConfig);
+    return structure;
+  }
+
+  async getStructureIds(): Promise<number[]> {
+    const esiRequestConfig: EsiRequestConfig<number[]> = {
+      query: async () => (await this.structuresCollection.find({})).map((structure) => structure.structure_id),
+      path: '/universe/structures',
+      update: async (structureIds) => {
+        await this.structuresCollection.putMany(structureIds.map((structureId) => ({ structure_id: structureId })));
+        return structureIds;
+      }
+    };
+    const structureIds = await this.esiService.request(esiRequestConfig);
+    return structureIds;
   }
 
   async getSystem(systemId: number): Promise<System> {

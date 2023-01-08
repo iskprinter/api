@@ -34,21 +34,20 @@ export default class EsiService {
     log.info(`Getting path '${esiRequestConfig.path}'...`);
 
     try {
-      const esiResponse = await requester.get<T>(`https://esi.evetech.net/latest${esiRequestConfig.path}`, {
+      const requestConfig = {
         ...esiRequestConfig.requestConfig,
         headers: {
           ...esiRequestConfig.requestConfig?.headers,
-          'if-none-match': priorRequest.etag,
         },
-        params: { page: 1 }
-      });
-      if (esiResponse.status === 304) {
-        log.info(`Data for request path ${esiRequestConfig.path} is unchanged.`);
-        await this._setExpiryAndEtag(esiRequestConfig, {
-          expires: esiResponse.headers.expires as string,
-        });
-        return;
+        params: {
+          ...esiRequestConfig.requestConfig?.params,
+          page: 1
+        }
+      };
+      if (priorRequest?.etag) {
+        requestConfig.headers['if-none-match'] = priorRequest.etag;
       }
+      const esiResponse = await requester.get<T>(`https://esi.evetech.net/latest${esiRequestConfig.path}`, requestConfig);
 
       log.info(`Storing response data for path '${esiRequestConfig.path}' page 1...`);
       await esiRequestConfig.update(esiResponse.data);
@@ -72,10 +71,28 @@ export default class EsiService {
       });
     } catch (err) {
       if (err instanceof AxiosError) {
-        if (err.response?.status === 404) {
-          log.warn(err.message);
+        switch (err.response?.status) {
+          case 304:
+            log.info(`Data for request path ${esiRequestConfig.path} is unchanged.`);
+            await this._setExpiryAndEtag(esiRequestConfig, {
+              expires: err.response?.headers.expires as string,
+            });
+            break;
+          case 502:
+            log.warn(err.message);
+            break;
+          case 503:
+            log.warn(err.message);
+            break;
+          case 504:
+            log.warn(err.message);
+            break;
+          default:
+            throw err;
         }
+        return;
       }
+      throw err;
     } finally {
       log.info(`Unlocking request path '${esiRequestConfig.path}'...`);
       await this._unlockRequest(esiRequestConfig);
@@ -94,7 +111,7 @@ export default class EsiService {
   }
 
   async _setExpiryAndEtag({ path }: { path: string }, { etag, expires }: { expires?: string, etag?: string }): Promise<EsiRequest> {
-    const updatedRequest: { expires?: number, etag?: string }  = {};
+    const updatedRequest: { expires?: number, etag?: string } = {};
     if (etag) {
       updatedRequest.etag = etag;
     }

@@ -4,7 +4,7 @@ import Joi from 'joi';
 import { StationTradingController } from 'src/controllers'
 import { Validator } from 'src/services'
 
-export default function typeRoutes(stationTradingController: StationTradingController): Router {
+export default function dealRoutes(stationTradingController: StationTradingController): Router {
   const router = express.Router()
   const validator = new Validator();
   router.get('/', validator.validate({
