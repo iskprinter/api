@@ -38,6 +38,15 @@ async function main(): Promise<void> {
   const typesCollection = database.getCollection<Type>('types');
   const tokensCollection = database.getCollection<Token>('tokens');
 
+  // Create indexes, if necessary
+  await Promise.all([
+    esiRequestCollection.createIndex({ path: 1 }),
+    groupsCollection.createIndex({ market_group_id: 1 }),
+    regionsCollection.createIndex({ region_id: 1 }),
+    typesCollection.createIndex({ type_id: 1 }),
+    tokensCollection.createIndex({ accessToken: 1 }),
+  ])
+
   // Load Services
   const tokenService = new TokenService();
   const esiRequestService = new EsiService(esiRequestCollection);

@@ -13,6 +13,10 @@ export default class MongoCollection<T> implements Collection<T> {
     return results;
   }
 
+  async createIndex(keys: object): Promise<string> {
+    return this.collection.createIndex({ ...keys });
+  }
+
   async deleteOne(query: object): Promise<T> {
     const deletedItem = await this.findOne(query);
     await this.collection.deleteOne(query);
