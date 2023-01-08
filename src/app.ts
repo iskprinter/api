@@ -13,6 +13,7 @@ import { DataProxy, TokenService } from 'src/services';
 import { AuthenticationController, HealthcheckController, StationTradingController } from './controllers';
 import EsiService from './services/EsiService';
 import EsiRequest from './models/EsiRequest';
+import Constellation from './models/Constellation';
 
 async function main(): Promise<void> {
 
@@ -32,6 +33,7 @@ async function main(): Promise<void> {
   app.use(express.urlencoded({ extended: false }));
 
   // Load Collections
+  const constellationsCollection = database.getCollection<Constellation>('constellations');
   const esiRequestCollection = database.getCollection<EsiRequest>('esi-requests');
   const groupsCollection = database.getCollection<Group>('groups');
   const regionsCollection = database.getCollection<Region>('regions');
@@ -41,6 +43,7 @@ async function main(): Promise<void> {
 
   // Create indexes, if necessary
   await Promise.all([
+    constellationsCollection.createIndex({ constellation_id: 1 }),
     esiRequestCollection.createIndex({ path: 1 }),
     groupsCollection.createIndex({ market_group_id: 1 }),
     regionsCollection.createIndex({ region_id: 1 }),
@@ -53,6 +56,7 @@ async function main(): Promise<void> {
   const tokenService = new TokenService();
   const esiRequestService = new EsiService(esiRequestCollection);
   const dataProxy = new DataProxy(
+    constellationsCollection,
     esiRequestService,
     groupsCollection,
     regionsCollection,

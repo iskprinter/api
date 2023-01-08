@@ -1,15 +1,43 @@
 import { Collection } from "src/databases";
 import { Group, Region, System, Type } from "src/models";
+import Constellation from "src/models/Constellation";
 import { EsiRequestConfig, EsiService } from "src/services";
 
 export default class DataProxy {
   constructor(
+    public constellationsCollection: Collection<Constellation>,
     public esiService: EsiService,
     public groupsCollection: Collection<Group>,
     public regionsCollection: Collection<Region>,
     public systemsCollection: Collection<System>,
     public typesCollection: Collection<Type>,
   ) { }
+
+  async getConstellation(constellationId: number): Promise<Constellation> {
+    const esiRequestConfig: EsiRequestConfig<Constellation> = {
+      query: async () => (await this.constellationsCollection.findOne({ constellation_id: constellationId})),
+      path: `/universe/constellations/${constellationId}`,
+      update: async (constellation) => {
+        await this.constellationsCollection.updateOne({ constellation_id: constellation.constellation_id }, constellation);
+        return constellation;
+      }
+    };
+    const constellation = await this.esiService.request(esiRequestConfig);
+    return constellation;
+  }
+
+  async getConstellationIds(): Promise<number[]> {
+    const esiRequestConfig: EsiRequestConfig<number[]> = {
+      query: async () => (await this.constellationsCollection.find({})).map((constellation) => constellation.constellation_id),
+      path: '/universe/constellations',
+      update: async (constellationIds) => {
+        await this.constellationsCollection.putMany(constellationIds.map((constellationId) => ({ constellation_id: constellationId })));
+        return constellationIds;
+      }
+    };
+    const constellationIds = await this.esiService.request(esiRequestConfig);
+    return constellationIds;
+  }
 
   async getMarketGroup(groupId: number): Promise<Group> {
     const esiRequestConfig: EsiRequestConfig<Group> = {

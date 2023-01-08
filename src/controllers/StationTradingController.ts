@@ -13,6 +13,14 @@ import {
 class StationTradingController {
   constructor(public dataProxy: DataProxy) { }
 
+  getConstellations(): RequestHandler {
+    return async (req: Request, res: Response) => {
+      const constellationIds = await this.dataProxy.getConstellationIds();
+      const constellations = await Promise.all(constellationIds.map(async (constellationId) => this.dataProxy.getConstellation(constellationId)));
+      return res.json({ constellations });
+    }
+  }
+
   getDeals(): RequestHandler {
     return async (req: Request, res: Response) => {
       // Get the set of marketable types
@@ -41,6 +49,17 @@ class StationTradingController {
     return async (req: Request, res: Response) => {
       const systemIds = await this.dataProxy.getSystemIds();
       const systems = await Promise.all(systemIds.map(async (systemId) => this.dataProxy.getSystem(systemId)));
+      if (req.query.constellationId) {
+        return res.json({ systems: systems.filter((system) => system.constellation_id === Number(req.query.constellationId)) });
+      }
+      if (req.query.regionId) {
+        const constellationIds = await this.dataProxy.getConstellationIds();
+        const constellations = await Promise.all(constellationIds.map(async (constellationId) => this.dataProxy.getConstellation(constellationId)));
+        const matchingConstellations = constellations.filter((constellation) => constellation.region_id === Number(req.query.regionId));
+        const matchingSystemIds = matchingConstellations.reduce((systemIds: number[], constellation) => [ ...systemIds, ...(constellation.systems || [])], []);
+        const matchingSystems = systems.filter((system) => matchingSystemIds.includes(system.system_id))
+        return res.json({ systems: matchingSystems });
+      }
       return res.json({ systems });
     }
   }

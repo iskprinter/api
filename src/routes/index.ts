@@ -5,6 +5,7 @@ import {
   HealthcheckController,
   StationTradingController,
 } from 'src/controllers';
+import constellationRoutes from 'src/routes/constellations';
 import dealRoutes from 'src/routes/deals';
 import regionRoutes from 'src/routes/regions';
 import systemRoutes from 'src/routes/systems';
@@ -17,6 +18,7 @@ export default function indexRoutes(
 ): Router {
 
   const router = express.Router();
+  router.use('/constellations', constellationRoutes(stationTradingController));
   router.use('/deals', dealRoutes(stationTradingController));
   router.use('/regions', regionRoutes(stationTradingController));
   router.use('/systems', systemRoutes(stationTradingController));
