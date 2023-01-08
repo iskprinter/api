@@ -1,8 +1,8 @@
 import { AxiosRequestConfig } from "axios";
 
-export default interface EsiRequestConfig<T, R> {
-  query: () => Promise<R>,
+export default interface EsiRequestConfig<T> {
+  query: () => Promise<T>,
   path: string,
   requestConfig?: AxiosRequestConfig,
-  update: (data: T) => Promise<R>,
+  update: (data: T) => Promise<T>,
 }

@@ -2,11 +2,9 @@ import { Deal, Type } from "src/models";
 import DealFinderStrategy from "./DealFinderStrategy";
 
 export default class AnyMarketableType implements DealFinderStrategy {
-  constructor(public types: Type[]) { }
+  constructor(public marketTypes: Type[]) { }
 
   getDeals(): Deal[] {
-    return this.types
-      .filter((type) => type.market_group_id && type.name)
-      .map((type) => ({ typeName: type.name })) as Deal[];
+    return this.marketTypes.map((marketType) => ({ typeName: marketType.name })) as Deal[];
   }
 }

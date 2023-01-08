@@ -12,7 +12,6 @@ export default function typeRoutes(stationTradingController: StationTradingContr
       authorization: Joi.string().regex(/^Bearer [\w.-]+$/).required()
     }),
     query: Joi.object({
-      characterId: Joi.number().required(),
       stationId: Joi.number(),
       structureId: Joi.number(),
     })

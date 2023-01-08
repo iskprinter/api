@@ -1,16 +1,17 @@
 import { Collection } from "src/databases";
-import { Group, Type } from "src/models";
+import { Group, Region, Type } from "src/models";
 import { EsiRequestConfig, EsiService } from "src/services";
 
 export default class DataProxy {
   constructor(
     public esiService: EsiService,
     public groupsCollection: Collection<Group>,
+    public regionsCollection: Collection<Region>,
     public typesCollection: Collection<Type>,
   ) { }
 
   async getMarketGroup(groupId: number): Promise<Group> {
-    const esiRequestConfig: EsiRequestConfig<Group, Group> = {
+    const esiRequestConfig: EsiRequestConfig<Group> = {
       query: () => this.groupsCollection.findOne({ market_group_id: groupId }),
       path: `/markets/groups/${groupId}`,
       update: async (group) => this.groupsCollection.updateOne({ market_group_id: group.market_group_id }, group)
@@ -19,20 +20,47 @@ export default class DataProxy {
     return group;
   }
 
-  async getMarketGroups(): Promise<Group[]> {
-    const esiRequestConfig: EsiRequestConfig<number[], Group[]> = {
-      query: async () => this.groupsCollection.find({}),
+  async getMarketGroupIds(): Promise<number[]> {
+    const esiRequestConfig: EsiRequestConfig<number[]> = {
+      query: async () => (await this.groupsCollection.find({})).map((group) => group.market_group_id),
       path: '/markets/groups',
-      update: async (marketGroupIds) => this.groupsCollection.putMany(
-        marketGroupIds.map((marketGroupId) => ({ market_group_id: marketGroupId }))
-      )
+      update: async (marketGroupIds) => {
+        this.groupsCollection.putMany(marketGroupIds.map((marketGroupId) => ({ market_group_id: marketGroupId })))
+        return marketGroupIds;
+      }
     };
-    const groups = await this.esiService.request(esiRequestConfig);
-    return groups;
+    const marketGroupIds = await this.esiService.request(esiRequestConfig);
+    return marketGroupIds;
+  }
+
+  async getRegion(regionId: number): Promise<Region> {
+    const esiRequestConfig: EsiRequestConfig<Region> = {
+      query: async () => (await this.regionsCollection.findOne({ region_id: regionId})),
+      path: `/universe/regions/${regionId}`,
+      update: async (region) => {
+        await this.regionsCollection.updateOne({ region_id: region.region_id }, region);
+        return region;
+      }
+    };
+    const region = await this.esiService.request(esiRequestConfig);
+    return region;
+  }
+
+  async getRegionIds(): Promise<number[]> {
+    const esiRequestConfig: EsiRequestConfig<number[]> = {
+      query: async () => (await this.regionsCollection.find({})).map((region) => region.region_id),
+      path: '/universe/regions',
+      update: async (regionIds) => {
+        await this.regionsCollection.putMany(regionIds.map((regionId) => ({ region_id: regionId })));
+        return regionIds;
+      }
+    };
+    const regionIds = await this.esiService.request(esiRequestConfig);
+    return regionIds;
   }
 
   async getType(typeId: number): Promise<Type> {
-    const esiRequestConfig: EsiRequestConfig<Type, Type> = {
+    const esiRequestConfig: EsiRequestConfig<Type> = {
       query: () => this.typesCollection.findOne({ type_id: typeId }),
       path: `/universe/types/${typeId}`,
       update: async (type) => this.typesCollection.updateOne({ type_id: type.type_id }, type)
@@ -41,15 +69,16 @@ export default class DataProxy {
     return type;
   }
 
-  async getTypes(): Promise<Type[]> {
-    const esiRequestConfig: EsiRequestConfig<number[], Type[]> = {
-      query: () => this.typesCollection.find({}),
+  async getTypeIds(): Promise<number[]> {
+    const esiRequestConfig: EsiRequestConfig<number[]> = {
+      query: async () => (await this.typesCollection.find({})).map((type) => type.type_id),
       path: '/universe/types',
-      update: async (typeIds) => this.typesCollection.putMany(
-        typeIds.map((typeId) => ({ type_id: typeId }))
-      )
+      update: async (typeIds) => {
+        await this.typesCollection.putMany(typeIds.map((typeId) => ({ type_id: typeId })));
+        return typeIds;
+      }
     };
-    const types = await this.esiService.request(esiRequestConfig);
-    return types;
+    const typeIds = await this.esiService.request(esiRequestConfig);
+    return typeIds;
   }
 }

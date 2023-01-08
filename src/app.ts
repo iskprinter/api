@@ -8,7 +8,7 @@ import { MongoDatabase } from 'src/databases';
 import indexRoutes from 'src/routes/index';
 import { HttpError } from 'src/errors';
 import log from 'src/tools/Logger';
-import { Group, Token, Type } from 'src/models';
+import { Group, Region, Token, Type } from 'src/models';
 import { DataProxy, TokenService } from 'src/services';
 import { AuthenticationController, HealthcheckController, StationTradingController } from './controllers';
 import EsiService from './services/EsiService';
@@ -34,6 +34,7 @@ async function main(): Promise<void> {
   // Load Collections
   const esiRequestCollection = database.getCollection<EsiRequest>('esi-requests');
   const groupsCollection = database.getCollection<Group>('groups');
+  const regionsCollection = database.getCollection<Region>('regions');
   const typesCollection = database.getCollection<Type>('types');
   const tokensCollection = database.getCollection<Token>('tokens');
 
@@ -43,18 +44,14 @@ async function main(): Promise<void> {
   const dataProxy = new DataProxy(
     esiRequestService,
     groupsCollection,
+    regionsCollection,
     typesCollection,
   );
 
   // Load Controllers
   const authenticationController = new AuthenticationController(tokensCollection, tokenService);
   const healthcheckController = new HealthcheckController();
-  const stationTradingController = new StationTradingController(
-    dataProxy,
-    esiRequestService,
-    esiRequestCollection,
-    typesCollection
-  );
+  const stationTradingController = new StationTradingController(dataProxy);
 
   // Load the application routes
   app.use('/', indexRoutes(

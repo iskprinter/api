@@ -3,6 +3,7 @@ import Deal from './Deal';
 import EsiRequest from './EsiRequest';
 import Group from './Group';
 import PersistentEntity from './PersistentEntity';
+import Region from './Region';
 import Token from './Token';
 import {
   TokenGetRequest,
@@ -17,6 +18,7 @@ export {
   EsiRequest,
   Group,
   PersistentEntity,
+  Region,
   Token,
   TokenGetRequest,
   TokenPostRequest,

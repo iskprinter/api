@@ -3,5 +3,5 @@ export default interface Group {
   description?: string;
   name?: string;
   parent_group_id?: number;
-  types?: Array<number>;
+  types?: number[];
 }
