@@ -4,6 +4,7 @@ import EsiRequest from './EsiRequest';
 import Group from './Group';
 import PersistentEntity from './PersistentEntity';
 import Region from './Region';
+import System from './System';
 import Token from './Token';
 import {
   TokenGetRequest,
@@ -19,6 +20,7 @@ export {
   Group,
   PersistentEntity,
   Region,
+  System,
   Token,
   TokenGetRequest,
   TokenPostRequest,

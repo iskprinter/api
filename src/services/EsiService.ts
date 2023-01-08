@@ -29,13 +29,14 @@ export default class EsiService {
     }
 
     // Submit a head request to check the etag, update the expiration, and get the number of pages.
-    const headResponse = await requester.head<T>(`https://esi.evetech.net/latest${esiRequestConfig.path}`, {
-      ...esiRequestConfig.requestConfig,
-      headers: {
-        ...esiRequestConfig.requestConfig?.headers,
-        'if-none-match': priorRequest.etag,
+    const headRequestConfig = esiRequestConfig.requestConfig || {};
+    if (priorRequest && priorRequest.etag) {
+      if (!headRequestConfig.headers) {
+        headRequestConfig.headers = {};
       }
-    });
+      headRequestConfig.headers['if-none-match'] = priorRequest.etag
+    }
+    const headResponse = await requester.head<T>(`https://esi.evetech.net/latest${esiRequestConfig.path}`, headRequestConfig);
     if (headResponse.status === 304) {
       log.info(`Data for request path ${esiRequestConfig.path} is unchanged.`);
       await this._setExpiryAndEtag(esiRequestConfig, {

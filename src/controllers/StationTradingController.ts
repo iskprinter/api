@@ -37,6 +37,13 @@ class StationTradingController {
     }
   }
 
+  getSystems(): RequestHandler {
+    return async (req: Request, res: Response) => {
+      const systemIds = await this.dataProxy.getSystemIds();
+      const systems = await Promise.all(systemIds.map(async (systemId) => this.dataProxy.getSystem(systemId)));
+      return res.json({ systems });
+    }
+  }
 }
 
 export default StationTradingController;

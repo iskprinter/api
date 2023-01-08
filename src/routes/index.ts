@@ -7,6 +7,7 @@ import {
 } from 'src/controllers';
 import dealRoutes from 'src/routes/deals';
 import regionRoutes from 'src/routes/regions';
+import systemRoutes from 'src/routes/systems';
 import tokenRoutes from 'src/routes/tokens';
 
 export default function indexRoutes(
@@ -18,6 +19,7 @@ export default function indexRoutes(
   const router = express.Router();
   router.use('/deals', dealRoutes(stationTradingController));
   router.use('/regions', regionRoutes(stationTradingController));
+  router.use('/systems', systemRoutes(stationTradingController));
   router.use('/tokens', tokenRoutes(authenticationController));
 
   router.get('/', healthcheckController.announceHealth());

@@ -1,5 +1,5 @@
 import { Collection } from "src/databases";
-import { Group, Region, Type } from "src/models";
+import { Group, Region, System, Type } from "src/models";
 import { EsiRequestConfig, EsiService } from "src/services";
 
 export default class DataProxy {
@@ -7,6 +7,7 @@ export default class DataProxy {
     public esiService: EsiService,
     public groupsCollection: Collection<Group>,
     public regionsCollection: Collection<Region>,
+    public systemsCollection: Collection<System>,
     public typesCollection: Collection<Type>,
   ) { }
 
@@ -52,6 +53,32 @@ export default class DataProxy {
       path: '/universe/regions',
       update: async (regionIds) => {
         await this.regionsCollection.putMany(regionIds.map((regionId) => ({ region_id: regionId })));
+        return regionIds;
+      }
+    };
+    const regionIds = await this.esiService.request(esiRequestConfig);
+    return regionIds;
+  }
+
+  async getSystem(systemId: number): Promise<System> {
+    const esiRequestConfig: EsiRequestConfig<System> = {
+      query: async () => (await this.systemsCollection.findOne({ system_id: systemId})),
+      path: `/universe/systems/${systemId}`,
+      update: async (system) => {
+        await this.systemsCollection.updateOne({ system_id: system.system_id }, system);
+        return system;
+      }
+    };
+    const system = await this.esiService.request(esiRequestConfig);
+    return system;
+  }
+
+  async getSystemIds(): Promise<number[]> {
+    const esiRequestConfig: EsiRequestConfig<number[]> = {
+      query: async () => (await this.systemsCollection.find({})).map((system) => system.system_id),
+      path: '/universe/systems',
+      update: async (systemIds) => {
+        await this.systemsCollection.putMany(systemIds.map((systemId) => ({ system_id: systemId })));
         return regionIds;
       }
     };

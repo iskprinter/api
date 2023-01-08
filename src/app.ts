@@ -8,7 +8,7 @@ import { MongoDatabase } from 'src/databases';
 import indexRoutes from 'src/routes/index';
 import { HttpError } from 'src/errors';
 import log from 'src/tools/Logger';
-import { Group, Region, Token, Type } from 'src/models';
+import { Group, Region, System, Token, Type } from 'src/models';
 import { DataProxy, TokenService } from 'src/services';
 import { AuthenticationController, HealthcheckController, StationTradingController } from './controllers';
 import EsiService from './services/EsiService';
@@ -35,6 +35,7 @@ async function main(): Promise<void> {
   const esiRequestCollection = database.getCollection<EsiRequest>('esi-requests');
   const groupsCollection = database.getCollection<Group>('groups');
   const regionsCollection = database.getCollection<Region>('regions');
+  const systemsCollection = database.getCollection<System>('systems');
   const typesCollection = database.getCollection<Type>('types');
   const tokensCollection = database.getCollection<Token>('tokens');
 
@@ -43,6 +44,7 @@ async function main(): Promise<void> {
     esiRequestCollection.createIndex({ path: 1 }),
     groupsCollection.createIndex({ market_group_id: 1 }),
     regionsCollection.createIndex({ region_id: 1 }),
+    systemsCollection.createIndex({ system_id: 1 }),
     typesCollection.createIndex({ type_id: 1 }),
     tokensCollection.createIndex({ accessToken: 1 }),
   ])
@@ -54,6 +56,7 @@ async function main(): Promise<void> {
     esiRequestService,
     groupsCollection,
     regionsCollection,
+    systemsCollection,
     typesCollection,
   );
 
