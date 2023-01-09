@@ -6,7 +6,7 @@ import {
 import DataProxy from "./DataProxy";
 import EsiRequestConfig from "./EsiRequestConfig";
 import EsiService from "./EsiService";
-import TokenService from "./TokenService";
+import AuthService from "./AuthService";
 import Validator from "./Validator";
 
 export {
@@ -16,6 +16,6 @@ export {
   DealFinderStrategy,
   EsiRequestConfig,
   EsiService,
-  TokenService,
+  AuthService,
   Validator
 }

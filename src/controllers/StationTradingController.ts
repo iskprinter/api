@@ -87,7 +87,6 @@ class StationTradingController {
   getStructures(): RequestHandler {
     return async (req: Request, res: Response) => {
       const structureIds = await this.dataProxy.getStructureIds();
-      console.log(structureIds);
       const structures = await Promise.all(structureIds.map(async (structureId) => this.dataProxy.getStructure(req.headers.authorization as string, structureId)));
       if (req.query.systemId) {
         return res.json({ structures: structures.filter((structure) => structure.solar_system_id === Number(req.query.systemId)) });

@@ -9,8 +9,8 @@ import indexRoutes from 'src/routes/index';
 import { HttpError } from 'src/errors';
 import log from 'src/tools/Logger';
 import { Group, Region, System, Token, Type } from 'src/models';
-import { DataProxy, TokenService } from 'src/services';
-import { AuthenticationController, HealthcheckController, StationTradingController } from './controllers';
+import { DataProxy, AuthService } from 'src/services';
+import { AuthController, HealthcheckController, StationTradingController } from './controllers';
 import EsiService from './services/EsiService';
 import EsiRequest from './models/EsiRequest';
 import Constellation from './models/Constellation';
@@ -59,7 +59,7 @@ async function main(): Promise<void> {
   ])
 
   // Load Services
-  const tokenService = new TokenService();
+  const authService = new AuthService();
   const esiRequestService = new EsiService(esiRequestCollection);
   const dataProxy = new DataProxy(
     constellationsCollection,
@@ -73,19 +73,19 @@ async function main(): Promise<void> {
   );
 
   // Load Controllers
-  const authenticationController = new AuthenticationController(tokensCollection, tokenService);
+  const authController = new AuthController(tokensCollection, authService);
   const healthcheckController = new HealthcheckController();
   const stationTradingController = new StationTradingController(dataProxy);
 
   // Load the application routes
   app.use('/', indexRoutes(
-    authenticationController,
+    authController,
     healthcheckController,
     stationTradingController,
   ));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  app.use(async (err: any, req: Request, res: Response, next: NextFunction): Promise<void> => {
+  app.use((err: any, req: Request, res: Response, next: NextFunction): void => {
     log.info(req);
 
     if (!err) {
@@ -94,7 +94,6 @@ async function main(): Promise<void> {
     }
 
     if (err instanceof HttpError) {
-      log.info(`${err.statusCode}: ${err.message}`);
       res.status(err.statusCode).json(err.message);
       log.info(res);
       return;

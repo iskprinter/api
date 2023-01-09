@@ -1,14 +1,14 @@
 import express, { NextFunction, Request, Response, Router } from 'express'
 
 import { RequestValidator } from 'src/tools/RequestValidator'
-import { AuthenticationController } from 'src/controllers'
+import { AuthController } from 'src/controllers'
 import log from 'src/tools/Logger';
 
-export default function tokenRoutes(authenticationController: AuthenticationController): Router {
+export default function tokenRoutes(authController: AuthController): Router {
 
   const router = express.Router()
 
-  router.get('/', authenticationController.verifyToken());
+  router.get('/', authController.verifyToken());
 
   router.post('/',
     async (req: Request, res: Response, next: NextFunction) => {
@@ -23,7 +23,7 @@ export default function tokenRoutes(authenticationController: AuthenticationCont
       log.info('Successfully validated request to POST /tokens.');
       next();
     },
-    authenticationController.getToken()
+    authController.getToken()
   )
 
   return router;

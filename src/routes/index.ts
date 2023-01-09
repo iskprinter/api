@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 
 import {
-  AuthenticationController,
+  AuthController,
   HealthcheckController,
   StationTradingController,
 } from 'src/controllers';
@@ -14,7 +14,7 @@ import systemRoutes from 'src/routes/systems';
 import tokenRoutes from 'src/routes/tokens';
 
 export default function indexRoutes(
-  authenticationController: AuthenticationController,
+  authController: AuthController,
   healthcheckController: HealthcheckController,
   stationTradingController: StationTradingController,
 ): Router {
@@ -26,7 +26,7 @@ export default function indexRoutes(
   router.use('/stations', stationRoutes(stationTradingController));
   router.use('/structures', structureRoutes(stationTradingController));
   router.use('/systems', systemRoutes(stationTradingController));
-  router.use('/tokens', tokenRoutes(authenticationController));
+  router.use('/tokens', tokenRoutes(authController));
 
   router.get('/', healthcheckController.announceHealth());
 

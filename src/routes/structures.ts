@@ -2,21 +2,24 @@ import express, { Router } from 'express'
 import Joi from 'joi';
 
 import { StationTradingController } from 'src/controllers'
-import { Validator } from 'src/services';
+import { AuthService, Validator } from 'src/services';
 
 export default function structureRoutes(stationTradingController: StationTradingController): Router {
+  const authService = new AuthService();
   const validator = new Validator();
   const router = express.Router()
-  router.get('/', validator.validate({
-    headers: Joi.object({
-      authorization: Joi.string().regex(/^Bearer [\w.-]+$/).required()
+  router.get(
+    '/',
+    authService.validateAuth(),
+    validator.validate({
+      query: Joi.object({
+        constellationId: Joi.number(),
+        regionId: Joi.number(),
+        systemId: Joi.number(),
+      })
+        .oxor('constellationId, regionId', 'systemId')
     }),
-    query: Joi.object({
-      constellationId: Joi.number(),
-      regionId: Joi.number(),
-      systemId: Joi.number(),
-    })
-      .oxor('constellationId, regionId', 'systemId')
-  }), stationTradingController.getStructures());
+    stationTradingController.getStructures()
+  );
   return router;
 }
