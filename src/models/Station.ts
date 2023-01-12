@@ -1,4 +1,4 @@
-export interface Station {
+export default interface Station {
   max_dockable_ship_volume?: number;
   name?: string;
   office_rental_cost?: number;

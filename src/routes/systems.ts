@@ -7,12 +7,17 @@ import { Validator } from 'src/services';
 export default function systemRoutes(stationTradingController: StationTradingController): Router {
   const validator = new Validator();
   const router = express.Router()
-  router.get('/', validator.validate({
-    query: Joi.object({
-      constellationId: Joi.number(),
-      regionId: Joi.number(),
-    })
-      .oxor('constellationId, regionId')
-  }), stationTradingController.getSystems());
+  router.get(
+    '/',
+    validator.validate({
+      query: Joi.object({
+        'constellation-id': Joi.number(),
+        'region-id': Joi.number(),
+      })
+        .oxor('constellation-id', 'region-id')
+    }),
+    stationTradingController.getSystems(),
+    stationTradingController.updateSystems(),
+  );
   return router;
 }

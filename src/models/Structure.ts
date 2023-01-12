@@ -1,4 +1,4 @@
-export interface Structure {
+export default interface Structure {
   structure_id: number;
   name?: string;
   owner_id?: number;

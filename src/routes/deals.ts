@@ -13,12 +13,13 @@ export default function dealRoutes(stationTradingController: StationTradingContr
     authService.validateAuth(),
     validator.validate({
       query: Joi.object({
-        stationId: Joi.number(),
-        structureId: Joi.number(),
+        'station-id': Joi.number(),
+        'structure-id': Joi.number(),
       })
-        .xor('stationId', 'structureId')
+        .xor('station-id', 'structure-id')
     }),
-    authService.validateAuth(),
-    stationTradingController.getDeals());
+    stationTradingController.getDeals(),
+    // stationTradingController.updateDeals(),
+  );
   return router;
 }

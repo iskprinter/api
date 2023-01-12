@@ -1,134 +1,192 @@
-import { Request, RequestHandler, Response } from 'express'
+import { NextFunction, Request, RequestHandler, Response } from 'express'
 
-import {
-  Deal,
-  Group,
-} from 'src/models';
-import {
-  DataProxy,
-  DealFinder,
-  AnyMarketableTypeStrategy,
-} from 'src/services';
+import { AuthService, DataProxy } from 'src/services';
+import log from 'src/tools/Logger';
 
 class StationTradingController {
-  constructor(public dataProxy: DataProxy) { }
+  constructor(
+    public authService: AuthService,
+    public dataProxy: DataProxy
+  ) { }
 
   getConstellations(): RequestHandler {
-    return async (req: Request, res: Response) => {
-      const constellationIds = await this.dataProxy.getConstellationIds();
-      const constellations = await Promise.all(constellationIds.map(async (constellationId) => this.dataProxy.getConstellation(constellationId)));
-      return res.json({ constellations });
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const constellations = await this.dataProxy.getConstellations();
+      res.json({ constellations });
+      return next();
     }
   }
 
   getDeals(): RequestHandler {
-    return async (req: Request, res: Response) => {
-      // Get the set of marketable types
-      const groupIds: number[] = await this.dataProxy.getMarketGroupIds();
-      const groups: Group[] = await Promise.all(groupIds.map(async (groupId) => this.dataProxy.getMarketGroup(groupId)));
-      const marketTypeIds = groups.reduce((marketTypeIds: number[], marketGroup: Group) => [ ...marketTypeIds, ...(marketGroup.types || [])], []);
-      const marketTypes = await Promise.all(marketTypeIds.map(async (marketTypeId) => this.dataProxy.getType(marketTypeId)));
-
-      // Compute deals
-      const anyMarketableTypeStrategy = new AnyMarketableTypeStrategy(marketTypes);
-      const dealFinder = new DealFinder(anyMarketableTypeStrategy);
-      const deals: Deal[] = dealFinder.getDeals();
-      return res.json({ deals });
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const regionId = await this._getRegionIdFromLocation({
+        stationId: Number(req.query['station-id']),
+        structureId: Number(req.query['structure-id']),
+      })
+      const deals = await this.dataProxy.getDeals(regionId);
+      res.json({ deals });
+      return next();
     };
   }
 
+  getMarketGroups(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const groups = await this.dataProxy.getGroups();
+      res.json({ groups });
+      return next();
+    };
+  }
+
+  getOrders(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const orders = await this.dataProxy.getOrders();
+      res.json({ orders });
+      return next();
+    }
+  }
+
   getRegions(): RequestHandler {
-    return async (req: Request, res: Response) => {
-      const regionIds = await this.dataProxy.getRegionIds();
-      const regions = await Promise.all(regionIds.map(async (regionId) => this.dataProxy.getRegion(regionId)));
-      return res.json({ regions });
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const regions = await this.dataProxy.getRegions();
+      res.json({ regions });
+      return next();
     }
   }
 
   getStations(): RequestHandler {
-    return async (req: Request, res: Response) => {
-      if (req.query.systemId) {
-        const system = await this.dataProxy.getSystem(Number(req.query.systemId));
-        const stationIds = system.stations || [];
-        const stations = await Promise.all(stationIds.map(async (stationId) => this.dataProxy.getStation(stationId)));
-        return res.json({ stations });
-      }
-      if (req.query.constellationId) {
-        const constellationIds = await this.dataProxy.getConstellationIds();
-        const constellations = await Promise.all(constellationIds.map(async (constellationId) => this.dataProxy.getConstellation(constellationId)));
-        const matchingConstellation = constellations.find((constellation) => constellation.constellation_id === Number(req.query.constellationId));
-        const matchingSystemIds = matchingConstellation?.systems;
-        if (!matchingSystemIds) {
-          return res.json({ stations: null });
-        }
-        const matchingSystems = await Promise.all(matchingSystemIds.map((systemId) => this.dataProxy.getSystem(systemId)));
-        const stationIds = matchingSystems.reduce((stationIds: number[], system) => [ ...stationIds, ...(system.stations || []) ], []);
-        const stations = await Promise.all(stationIds.map(async (stationId) => this.dataProxy.getStation(stationId)));
-        return res.json({ stations });
-      }
-      if (req.query.regionId) {
-        const constellationIds = await this.dataProxy.getConstellationIds();
-        const constellations = await Promise.all(constellationIds.map(async (constellationId) => this.dataProxy.getConstellation(constellationId)));
-        const matchingConstellations = constellations.filter((constellation) => constellation.region_id === Number(req.query.regionId));
-        const matchingSystemIds = matchingConstellations.reduce((systemIds: number[], constellation) => [ ...systemIds, ...(constellation.systems || [])], []);
-        const matchingSystems = await Promise.all(matchingSystemIds.map(async (systemId) => this.dataProxy.getSystem(systemId)));
-        const stationIds = matchingSystems.reduce((stationIds: number[], system) => [ ...stationIds, ...(system.stations || []) ], []);
-        const stations = await Promise.all(stationIds.map(async (stationId) => this.dataProxy.getStation(stationId)));
-        return res.json({ stations });
-      }
-      const systemIds = await this.dataProxy.getSystemIds();
-      const systems = await Promise.all(systemIds.map(async (systemId) => this.dataProxy.getSystem(systemId)));
-      const stationIds = systems.reduce((stationIds: number[], system) => [ ...stationIds, ...(system.stations || []) ], []);
-      const stations = await Promise.all(stationIds.map(async (stationId) => this.dataProxy.getStation(stationId)));
-      return res.json({ stations });
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const stations = await this.dataProxy.getStations({
+        regionId: Number(req.query['region-id']),
+        constellationId: Number(req.query['constellation-id']),
+        systemId: Number(req.query['system-id']),
+      })
+      res.json({ stations });
+      return next();
     }
   }
 
   getStructures(): RequestHandler {
-    return async (req: Request, res: Response) => {
-      const structureIds = await this.dataProxy.getStructureIds();
-      const structures = await Promise.all(structureIds.map(async (structureId) => this.dataProxy.getStructure(req.headers.authorization as string, structureId)));
-      if (req.query.systemId) {
-        return res.json({ structures: structures.filter((structure) => structure.solar_system_id === Number(req.query.systemId)) });
-      }
-      if (req.query.constellationId) {
-        const constellationIds = await this.dataProxy.getConstellationIds();
-        const constellations = await Promise.all(constellationIds.map(async (constellationId) => this.dataProxy.getConstellation(constellationId)));
-        const matchingConstellation = constellations.find((constellation) => constellation.constellation_id === Number(req.query.constellationId));
-        const matchingSystemIds = matchingConstellation?.systems;
-        if (!matchingSystemIds) {
-          return res.json({ stations: null });
-        }
-        return res.json({ structures: structures.filter((structure) => structure.solar_system_id ? matchingSystemIds.includes(structure.solar_system_id) : false) });
-      }
-      if (req.query.regionId) {
-        const constellationIds = await this.dataProxy.getConstellationIds();
-        const constellations = await Promise.all(constellationIds.map(async (constellationId) => this.dataProxy.getConstellation(constellationId)));
-        const matchingConstellations = constellations.filter((constellation) => constellation.region_id === Number(req.query.regionId));
-        const matchingSystemIds = matchingConstellations.reduce((systemIds: number[], constellation) => [ ...systemIds, ...(constellation.systems || [])], []);
-        return res.json({ structures: structures.filter((structure) => structure.solar_system_id ? matchingSystemIds.includes(structure.solar_system_id) : false) });
-      }
-      return res.json({ structures });
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const structures = await this.dataProxy.getStructures({
+        regionId: Number(req.query['region-id']),
+        constellationId: Number(req.query['constellation-id']),
+        systemId: Number(req.query['system-id']),
+      })
+      res.json({ structures });
+      return next();
     }
   }
 
   getSystems(): RequestHandler {
-    return async (req: Request, res: Response) => {
-      const systemIds = await this.dataProxy.getSystemIds();
-      const systems = await Promise.all(systemIds.map(async (systemId) => this.dataProxy.getSystem(systemId)));
-      if (req.query.constellationId) {
-        return res.json({ systems: systems.filter((system) => system.constellation_id === Number(req.query.constellationId)) });
-      }
-      if (req.query.regionId) {
-        const constellationIds = await this.dataProxy.getConstellationIds();
-        const constellations = await Promise.all(constellationIds.map(async (constellationId) => this.dataProxy.getConstellation(constellationId)));
-        const matchingConstellations = constellations.filter((constellation) => constellation.region_id === Number(req.query.regionId));
-        const matchingSystemIds = matchingConstellations.reduce((systemIds: number[], constellation) => [ ...systemIds, ...(constellation.systems || [])], []);
-        const matchingSystems = systems.filter((system) => matchingSystemIds.includes(system.system_id))
-        return res.json({ systems: matchingSystems });
-      }
-      return res.json({ systems });
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const systems = await this.dataProxy.getSystems({
+        regionId: Number(req.query['region-id']),
+        constellationId: Number(req.query['constellation-id']),
+      });
+      res.json({ systems });
+      return next();
     }
+  }
+
+  updateDeals(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+
+      this.dataProxy.updateTypes();
+
+      const regionId = await this._getRegionIdFromLocation({
+        stationId: Number(req.query['station-id']),
+        structureId: Number(req.query['structure-id']),
+      });
+      const orderType = 'all';
+      this.dataProxy.updateMarketOrders(regionId, orderType);
+      return next();
+    }
+  }
+
+  updateMarketGroups(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      this.dataProxy.updateMarketGroups();
+      return next();
+    };
+  }
+
+  updateOrders(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const regionId = Number(req.query['region-id']);
+      const orderType = String(req.query['order-type']);
+      this.dataProxy.updateMarketOrders(regionId, orderType);
+      return next();
+    }
+  }
+
+  updateRegions(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      this.dataProxy.updateRegions();
+      return next();
+    }
+  }
+
+  updateStations(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      this.dataProxy.updateConstellations();
+      this.dataProxy.updateStations();
+      return next();
+    };
+  }
+
+  updateStructures(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      this.dataProxy.updateConstellations();
+      this.dataProxy.updateStructures(String(req.headers.authorization));
+      return next();
+    };
+  }
+
+  updateSystems(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      this.dataProxy.updateSystems()
+      return next()
+    };
+  }
+
+  updateTypes(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      this.dataProxy.updateTypes();
+      return next()
+    };
+  }
+
+  async _getRegionIdFromLocation({ stationId, structureId }: { stationId?: number, structureId?: number }): Promise<number> {
+
+    let systemId;
+
+    if (stationId) {
+      log.info('getting systemId from stationId...');
+      const stations = await this.dataProxy.getStations({ stationId });
+      if (stations.length !== 1) {
+        throw new Error(`Unable to find exactly 1 station with with requested station_id ${stationId}.`);
+      }
+      const station = stations[0];
+      systemId = station.system_id;
+    }
+
+    if (structureId) {
+      log.info('getting systemId from structureId...');
+      const structures = await this.dataProxy.getStructures({ structureId });
+      if (structures.length !== 1) {
+        throw new Error(`Unable to find exactly 1 structure with with requested structure_id ${structureId}.`);
+      }
+      const structure = structures[0];
+      systemId = structure.solar_system_id;
+    }
+
+    log.info('getting regionId from systemId...');
+    const constellations = await this.dataProxy.getConstellations({ systems: systemId });
+    if (constellations.length !== 1) {
+      throw new Error(`Unable to find exactly 1 constellation with with requested system_id ${systemId}.`);
+    }
+    const constellation = constellations[0];
+    return Number(constellation.region_id);
   }
 }
 

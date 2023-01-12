@@ -1,21 +1,21 @@
 import {
   AnyMarketableTypeStrategy,
   DealFinder,
-  DealFinderStrategy
+  DealFinderStrategy,
+  InventoryTimesMarginStrategy,
 } from "./DealFinder";
-import DataProxy from "./DataProxy";
-import EsiRequestConfig from "./EsiRequestConfig";
 import EsiService from "./EsiService";
 import AuthService from "./AuthService";
+import DataProxy from "./DataProxy";
 import Validator from "./Validator";
 
 export {
   AnyMarketableTypeStrategy,
-  DataProxy,
   DealFinder,
   DealFinderStrategy,
-  EsiRequestConfig,
+  InventoryTimesMarginStrategy,
   EsiService,
   AuthService,
+  DataProxy,
   Validator
 }

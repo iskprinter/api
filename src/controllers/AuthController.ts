@@ -19,7 +19,7 @@ class AuthController {
 
   getToken(): RequestHandler {
     return async (req: Request, res: Response) => {
-      const tokenRequest: TokenPostRequest = req.body
+      const tokenRequest: TokenPostRequest = req.body;
       log.info(`Creating token for tokenRequest ${JSON.stringify(tokenRequest)}...`);
       let token: Token;
       switch (tokenRequest.proofType) {

@@ -23,19 +23,25 @@ export default class MongoCollection<T> implements Collection<T> {
     return deletedItem;
   }
 
-  async find(query: object): Promise<Array<T>> {
-    const results = await this.collection.find(query).toArray() as Array<T>;
+  async find(query: object, options?: { projection: object }): Promise<Array<T>> {
+    const results = await this.collection.find(query, {
+      ...options,
+      projection: {
+        ...options?.projection,
+        _id: 0
+      }
+    }).toArray() as Array<T>;
     return results;
   }
 
   async findOne(query: object): Promise<T> {
-    const result = await this.collection.findOne(query) as T;
+    const result = await this.collection.findOne(query, { projection: { _id: 0 }}) as T;
     return result;
   }
 
   async insertOne(document: T): Promise<T> {
     const result = await this.collection.insertOne(document as OptionalId<Document>);
-    return this.collection.findOne({ _id: result.insertedId }) as T
+    return this.collection.findOne({ _id: result.insertedId }, { projection: { _id: 0 }}) as T
   }
 
   async putMany(documents: Array<T>): Promise<Array<T>> {
@@ -49,7 +55,8 @@ export default class MongoCollection<T> implements Collection<T> {
     const insertedDocs = new Array<T>();
     for (const document of documents) {
       const insertedDoc = await this.collection.findOne(
-        document as OptionalId<Document>
+        document as OptionalId<Document>,
+        { projection: { _id: 0 }}
       );
       insertedDocs.push(insertedDoc as T);
     }
@@ -62,7 +69,7 @@ export default class MongoCollection<T> implements Collection<T> {
       { $set: document },
       {upsert: true}
     );
-    return this.collection.findOne({ _id: updateResult.upsertedId }) as T;
+    return this.collection.findOne({ _id: updateResult.upsertedId }, { projection: { _id: 0 }}) as T;
   }
 
 }

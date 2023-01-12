@@ -9,6 +9,7 @@ import { Token } from 'src/models'
 import log from 'src/tools/Logger';
 import { Request, Response, NextFunction } from 'express';
 import ForbiddenError from 'src/errors/ForbiddenError';
+import { AxiosError } from 'axios';
 
 export default class AuthService {
 
@@ -44,9 +45,11 @@ export default class AuthService {
       await token.save();
       return token;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      if (err.response.status === 401) {
-        throw new UnauthorizedError()
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        if (err.response?.status === 401) {
+          throw new UnauthorizedError()
+        }
       }
       log.error(err);
       throw err;
@@ -72,10 +75,12 @@ export default class AuthService {
     try {
       eveResponse = await requester.post('https://login.eveonline.com/v2/oauth/token', body.toString(), config)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      if (err.response.status === 400 && err.response.data.error === 'invalid_grant') {
-        log.error(err);
-        throw new ResourceNotFoundError('The Eve API rejected the refresh token.')
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        if (err.response?.status === 400 && err.response.data.error === 'invalid_grant') {
+          log.error(err);
+          throw new ResourceNotFoundError('The Eve API rejected the refresh token.')
+        }
       }
       throw err
     }
@@ -87,6 +92,14 @@ export default class AuthService {
     // Save the new accessToken:refreshToken pair.
     const token = new Token(accessToken, refreshToken)
     return token.save()
+  }
+
+  getCharacterIdFromToken(token: string): number {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = JSON.parse(Buffer.from(base64, 'base64').toString());
+    const characterId = Number(jsonPayload.sub.match(/CHARACTER:EVE:(?<id>\d+)/).groups.id);
+    return characterId;
   }
 
   validateAuth() {

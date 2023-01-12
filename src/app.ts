@@ -8,14 +8,10 @@ import { MongoDatabase } from 'src/databases';
 import indexRoutes from 'src/routes/index';
 import { HttpError } from 'src/errors';
 import log from 'src/tools/Logger';
-import { Group, Region, System, Token, Type } from 'src/models';
-import { DataProxy, AuthService } from 'src/services';
+import { Constellation, EsiRequest, Group, Order, Region, Station, Structure, System, Token, Type } from 'src/models';
+import { AuthService, DataProxy as DataProxy } from 'src/services';
 import { AuthController, HealthcheckController, StationTradingController } from './controllers';
 import EsiService from './services/EsiService';
-import EsiRequest from './models/EsiRequest';
-import Constellation from './models/Constellation';
-import { Station } from './models/Station';
-import { Structure } from './models/Structure';
 
 async function main(): Promise<void> {
 
@@ -36,8 +32,9 @@ async function main(): Promise<void> {
 
   // Load Collections
   const constellationsCollection = database.getCollection<Constellation>('constellations');
-  const esiRequestCollection = database.getCollection<EsiRequest>('esi-requests');
+  const esiRequestCollection = database.getCollection<EsiRequest>('esiRequests');
   const groupsCollection = database.getCollection<Group>('groups');
+  const ordersCollection = database.getCollection<Order>('orders');
   const regionsCollection = database.getCollection<Region>('regions');
   const stationsCollection = database.getCollection<Station>('stations');
   const structuresCollection = database.getCollection<Structure>('structures');
@@ -48,8 +45,9 @@ async function main(): Promise<void> {
   // Create indexes, if necessary
   await Promise.all([
     constellationsCollection.createIndex({ constellation_id: 1 }),
-    esiRequestCollection.createIndex({ path: 1 }),
+    esiRequestCollection.createIndex({ requestId: 1 }),
     groupsCollection.createIndex({ market_group_id: 1 }),
+    ordersCollection.createIndex({ order_id: 1 }),
     regionsCollection.createIndex({ region_id: 1 }),
     stationsCollection.createIndex({ station_id: 1 }),
     structuresCollection.createIndex({ structure_id: 1 }),
@@ -60,22 +58,31 @@ async function main(): Promise<void> {
 
   // Load Services
   const authService = new AuthService();
-  const esiRequestService = new EsiService(esiRequestCollection);
+  const esiService = new EsiService(esiRequestCollection);
   const dataProxy = new DataProxy(
+    esiService,
     constellationsCollection,
-    esiRequestService,
     groupsCollection,
+    ordersCollection,
     regionsCollection,
     stationsCollection,
     structuresCollection,
     systemsCollection,
     typesCollection,
-  );
+  )
 
   // Load Controllers
   const authController = new AuthController(tokensCollection, authService);
   const healthcheckController = new HealthcheckController();
-  const stationTradingController = new StationTradingController(dataProxy);
+  const stationTradingController = new StationTradingController(
+    authService,
+    dataProxy
+  );
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    log.info(req);
+    return next();
+  });
 
   // Load the application routes
   app.use('/', indexRoutes(
@@ -86,8 +93,6 @@ async function main(): Promise<void> {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.use((err: any, req: Request, res: Response, next: NextFunction): void => {
-    log.info(req);
-
     if (!err) {
       log.info(res);
       return next();

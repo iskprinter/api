@@ -1,6 +1,9 @@
 export default interface EsiRequest {
-  path: string
-  inProgress: boolean;
+  requestId: string
+  locked: number;
   etag: string;
   expires: number;
+  method: string;
+  url: string;
+  params: object;
 }

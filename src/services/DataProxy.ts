@@ -1,15 +1,15 @@
+import { Subscription } from "rxjs";
 import { Collection } from "src/databases";
-import { Group, Region, System, Type } from "src/models";
-import Constellation from "src/models/Constellation";
-import { Station } from "src/models/Station";
-import { Structure } from "src/models/Structure";
-import { EsiRequestConfig, EsiService } from "src/services";
+import { Constellation, Deal, Group, Order, Region, Station, Structure, System, Type } from "src/models";
+import { DealFinder, InventoryTimesMarginStrategy } from "./DealFinder";
+import EsiService from "./EsiService";
 
 export default class DataProxy {
   constructor(
-    public constellationsCollection: Collection<Constellation>,
     public esiService: EsiService,
+    public constellationsCollection: Collection<Constellation>,
     public groupsCollection: Collection<Group>,
+    public ordersCollection: Collection<Order>,
     public regionsCollection: Collection<Region>,
     public stationsCollection: Collection<Station>,
     public structuresCollection: Collection<Structure>,
@@ -17,170 +17,240 @@ export default class DataProxy {
     public typesCollection: Collection<Type>,
   ) { }
 
-  async getConstellation(constellationId: number): Promise<Constellation> {
-    const esiRequestConfig: EsiRequestConfig<Constellation> = {
-      query: async () => (await this.constellationsCollection.findOne({ constellation_id: constellationId})),
-      path: `/universe/constellations/${constellationId}`,
-      update: async (constellation) => {
-        await this.constellationsCollection.updateOne({ constellation_id: constellation.constellation_id }, constellation);
-        return constellation;
-      }
-    };
-    const constellation = await this.esiService.request(esiRequestConfig);
-    return constellation;
+  async getConstellations(query: object = {}): Promise<Constellation[]> {
+    const constellations = await this.constellationsCollection.find(query);
+    return constellations;
   }
 
-  async getConstellationIds(): Promise<number[]> {
-    const esiRequestConfig: EsiRequestConfig<number[]> = {
-      query: async () => (await this.constellationsCollection.find({})).map((constellation) => constellation.constellation_id),
-      path: '/universe/constellations',
-      update: async (constellationIds) => {
-        await this.constellationsCollection.putMany(constellationIds.map((constellationId) => ({ constellation_id: constellationId })));
-        return constellationIds;
-      }
-    };
-    const constellationIds = await this.esiService.request(esiRequestConfig);
-    return constellationIds;
+  async getDeals(regionId: number): Promise<Deal[]> {
+
+    // Get the set of marketable types
+    const typeIds = (await this.groupsCollection.find({}))
+      .filter((group) => group.market_group_id !== 2 && group.parent_group_id !== 2) // Blueprints and reactions
+      .filter((group) => group.market_group_id !== 150 && group.parent_group_id !== 150) // Skill books
+      .reduce((typeIds: number[], group) => [...typeIds, ...(group.types || [])], []);
+
+    const orders: Order[] = await this.ordersCollection.find({ region_id: regionId });
+
+    const types: Type[] = await this.typesCollection.find({ type_id: { $in: typeIds } });
+
+    // Compute deals
+    const strategy = new InventoryTimesMarginStrategy(types, orders);
+    const dealFinder = new DealFinder(strategy);
+    const deals: Deal[] = dealFinder.getDeals();
+    return deals;
   }
 
-  async getMarketGroup(groupId: number): Promise<Group> {
-    const esiRequestConfig: EsiRequestConfig<Group> = {
-      query: () => this.groupsCollection.findOne({ market_group_id: groupId }),
-      path: `/markets/groups/${groupId}`,
-      update: async (group) => this.groupsCollection.updateOne({ market_group_id: group.market_group_id }, group)
-    };
-    const group = await this.esiService.request(esiRequestConfig);
-    return group;
+  async getGroups(): Promise<Group[]> {
+    const groups = await this.groupsCollection.find({});
+    return groups;
   }
 
-  async getMarketGroupIds(): Promise<number[]> {
-    const esiRequestConfig: EsiRequestConfig<number[]> = {
-      query: async () => (await this.groupsCollection.find({})).map((group) => group.market_group_id),
-      path: '/markets/groups',
-      update: async (marketGroupIds) => {
-        this.groupsCollection.putMany(marketGroupIds.map((marketGroupId) => ({ market_group_id: marketGroupId })))
-        return marketGroupIds;
-      }
-    };
-    const marketGroupIds = await this.esiService.request(esiRequestConfig);
-    return marketGroupIds;
+  async getOrders(): Promise<Order[]> {
+    const orders = await this.ordersCollection.find({});
+    return orders;
   }
 
-  async getRegion(regionId: number): Promise<Region> {
-    const esiRequestConfig: EsiRequestConfig<Region> = {
-      query: async () => (await this.regionsCollection.findOne({ region_id: regionId})),
-      path: `/universe/regions/${regionId}`,
-      update: async (region) => {
-        await this.regionsCollection.updateOne({ region_id: region.region_id }, region);
-        return region;
-      }
-    };
-    const region = await this.esiService.request(esiRequestConfig);
-    return region;
+  async getRegions(): Promise<Region[]> {
+    const regions = await this.regionsCollection.find({});
+    return regions;
   }
 
-  async getRegionIds(): Promise<number[]> {
-    const esiRequestConfig: EsiRequestConfig<number[]> = {
-      query: async () => (await this.regionsCollection.find({})).map((region) => region.region_id),
-      path: '/universe/regions',
-      update: async (regionIds) => {
-        await this.regionsCollection.putMany(regionIds.map((regionId) => ({ region_id: regionId })));
-        return regionIds;
-      }
-    };
-    const regionIds = await this.esiService.request(esiRequestConfig);
-    return regionIds;
+  async getStations({ regionId, constellationId, systemId, stationId }: { regionId?: number, constellationId?: number, systemId?: number, stationId?: number }): Promise<Station[]> {
+    if (stationId) {
+      const stations = await this.stationsCollection.find({ station_id: stationId });
+      return stations;
+    }
+    if (systemId) {
+      const stations = await this.stationsCollection.find({ system_id: systemId });
+      return stations;
+    }
+    if (constellationId) {
+      const constellations = await this.constellationsCollection.find({ constellation_id: constellationId });
+      const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
+      const stations = await this.stationsCollection.find({ system_id: { $in: systemIds } });
+      return stations;
+    }
+    if (regionId) {
+      const constellations = await this.constellationsCollection.find({ region_id: regionId });
+      const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
+      const stations = await this.stationsCollection.find({ system_id: { $in: systemIds } });
+      return stations;
+    }
+    const stations = await this.stationsCollection.find({});
+    return stations;
   }
 
-  async getStation(stationId: number): Promise<Station> {
-    const esiRequestConfig: EsiRequestConfig<Station> = {
-      query: async () => (await this.stationsCollection.findOne({ station_id: stationId})),
-      path: `/universe/stations/${stationId}`,
-      update: async (station) => {
-        await this.stationsCollection.updateOne({ station_id: station.station_id }, station);
-        return station;
-      }
-    };
-    const station = await this.esiService.request(esiRequestConfig);
-    return station;
+  async getStructures({ regionId, constellationId, systemId, structureId }: { regionId?: number, constellationId?: number, systemId?: number, structureId?: number }) {
+    if (structureId) {
+      const structures = await this.structuresCollection.find({ structure_id: structureId });
+      return structures;
+    }
+    if (systemId) {
+      const structures = await this.structuresCollection.find({ solar_system_id: systemId });
+      return structures;
+    }
+    if (constellationId) {
+      const constellations = await this.constellationsCollection.find({ constellation_id: constellationId });
+      const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
+      const structures = await this.structuresCollection.find({ solar_system_id: { $in: systemIds } });
+      return structures;
+    }
+    if (regionId) {
+      const constellations = await this.constellationsCollection.find({ region_id: regionId });
+      const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
+      const structures = await this.structuresCollection.find({ solar_system_id: { $in: systemIds } });
+      return structures;
+    }
+    const structures = await this.structuresCollection.find({});
+    return structures;
   }
 
-  async getStructure(authorization: string, structureId: number): Promise<Structure> {
-    const esiRequestConfig: EsiRequestConfig<Structure> = {
-      query: async () => (await this.structuresCollection.findOne({ structure_id: structureId})),
-      path: `/universe/structures/${structureId}`,
-      requestConfig: { headers: { authorization } },
-      update: async (structure) => {
-        if (structure.structure_id === null) {
-          throw new Error(`Got structure with null structure ID: ${JSON.stringify(structure)}`)
-        }
-        await this.structuresCollection.updateOne({ structure_id: structureId }, structure); // 'structure' lacks a structure_id
-        return structure;
-      }
-    };
-    const structure = await this.esiService.request(esiRequestConfig);
-    return structure;
+  async getSystems({ regionId, constellationId }: { regionId?: number, constellationId?: number }): Promise<System[]> {
+    if (constellationId) {
+      const constellations = await this.constellationsCollection.find({ constelation_id: constellationId });
+      const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
+      const systems = await this.systemsCollection.find({ system_id: { $in: systemIds } });
+      return systems;
+    }
+    if (regionId) {
+      const constellations = await this.constellationsCollection.find({ region_id: regionId });
+      const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
+      const systems = await this.systemsCollection.find({ system_id: { $in: systemIds } });
+      return systems;
+    }
+    const systems = await this.systemsCollection.find({});
+    return systems;
   }
 
-  async getStructureIds(): Promise<number[]> {
-    const esiRequestConfig: EsiRequestConfig<number[]> = {
-      query: async () => (await this.structuresCollection.find({})).map((structure) => structure.structure_id),
-      path: '/universe/structures',
-      update: async (structureIds) => {
-        await this.structuresCollection.putMany(structureIds.map((structureId) => ({ structure_id: structureId })));
-        return structureIds;
-      }
-    };
-    const structureIds = await this.esiService.request(esiRequestConfig);
-    return structureIds;
+  updateConstellations(): Subscription {
+    return this.esiService.update<number[]>({
+      method: 'get',
+      url: '/universe/constellations'
+    }).subscribe((constellationIds) => {
+      return Promise.all(constellationIds.map((constellationId) => {
+        return this.esiService.update<Constellation>({
+          method: 'get',
+          url: `/universe/constellations/${constellationId}`
+        }).subscribe((constellation) => {
+          this.constellationsCollection.updateOne({ constellation_id: constellationId }, constellation);
+        });
+      }));
+    });
   }
 
-  async getSystem(systemId: number): Promise<System> {
-    const esiRequestConfig: EsiRequestConfig<System> = {
-      query: async () => (await this.systemsCollection.findOne({ system_id: systemId})),
-      path: `/universe/systems/${systemId}`,
-      update: async (system) => {
-        await this.systemsCollection.updateOne({ system_id: system.system_id }, system);
-        return system;
-      }
-    };
-    const system = await this.esiService.request(esiRequestConfig);
-    return system;
+  updateMarketGroups(): Subscription {
+    return this.esiService.update<number[]>({
+      method: 'get',
+      url: '/market/groups'
+    }).subscribe((groupIds) => {
+      return Promise.all(groupIds.map((groupId) => {
+        return this.esiService.update<Group>({
+          method: 'get',
+          url: `/market/groups/${groupId}`
+        }).subscribe((group) => {
+          return this.groupsCollection.updateOne({ market_group_id: groupId }, group);
+        });
+      }));
+    });
   }
 
-  async getSystemIds(): Promise<number[]> {
-    const esiRequestConfig: EsiRequestConfig<number[]> = {
-      query: async () => (await this.systemsCollection.find({})).map((system) => system.system_id),
-      path: '/universe/systems',
-      update: async (systemIds) => {
-        await this.systemsCollection.putMany(systemIds.map((systemId) => ({ system_id: systemId })));
-        return regionIds;
-      }
-    };
-    const regionIds = await this.esiService.request(esiRequestConfig);
-    return regionIds;
+  updateMarketOrders(regionId: number, orderType: string): Subscription {
+    return this.esiService.update<Order[]>({
+      method: 'get',
+      url: `/markets/${regionId}/orders`,
+      params: { order_type: orderType }
+    }).subscribe((orders) => {
+      return this.ordersCollection.putMany(orders.map((order) => ({ ...order, region_id: regionId })));
+    });
   }
 
-  async getType(typeId: number): Promise<Type> {
-    const esiRequestConfig: EsiRequestConfig<Type> = {
-      query: () => this.typesCollection.findOne({ type_id: typeId }),
-      path: `/universe/types/${typeId}`,
-      update: async (type) => this.typesCollection.updateOne({ type_id: type.type_id }, type)
-    };
-    const type = await this.esiService.request(esiRequestConfig);
-    return type;
+  updateRegions(): Subscription {
+    return this.esiService.update<number[]>({
+      method: 'get',
+      url: '/universe/regions'
+    }).subscribe((regionIds) => {
+      return Promise.all(regionIds.map((regionId) => {
+        return this.esiService.update<Region>({
+          method: 'get',
+          url: `/universe/regions/${regionId}`
+        }).subscribe((region) => {
+          return this.regionsCollection.updateOne({ region_id: regionId }, region);
+        });
+      }));
+    });
   }
 
-  async getTypeIds(): Promise<number[]> {
-    const esiRequestConfig: EsiRequestConfig<number[]> = {
-      query: async () => (await this.typesCollection.find({})).map((type) => type.type_id),
-      path: '/universe/types',
-      update: async (typeIds) => {
-        await this.typesCollection.putMany(typeIds.map((typeId) => ({ type_id: typeId })));
-        return typeIds;
-      }
-    };
-    const typeIds = await this.esiService.request(esiRequestConfig);
-    return typeIds;
+  updateStations(): Subscription {
+    return this.esiService.update<number[]>({
+      method: 'get',
+      url: '/universe/systems'
+    }).subscribe((systemIds) => {
+      return Promise.all(systemIds.map((systemId) => {
+        return this.esiService.update<System>({
+          method: 'get',
+          url: `/universe/systems/${systemId}`
+        }).subscribe((system) => {
+          this.systemsCollection.updateOne({ system_id: systemId }, system);
+          return Promise.all((system.stations || []).map((stationId) => {
+            return this.esiService.update<Station>({
+              method: 'get',
+              url: `/universe/station/${stationId}`
+            }).subscribe((station) => {
+              return this.stationsCollection.updateOne({ station_id: stationId }, station);
+            });
+          }));
+        });
+      }));
+    });
+  }
+
+  updateStructures(authorization: string): Subscription {
+    return this.esiService.update<number[]>({
+      method: 'get',
+      url: '/universe/structures'
+    }).subscribe((structureIds) => {
+      return Promise.all(structureIds.map((structureId) => {
+        return this.esiService.update<Structure>({
+          method: 'get',
+          url: `/universe/structures/${structureId}`,
+          headers: { authorization }
+        }).subscribe((structure) => {
+          return this.structuresCollection.updateOne({ structure_id: structureId }, structure);
+        });
+      }));
+    });
+  }
+
+  updateSystems(): Subscription {
+    return this.esiService.update<number[]>({
+      method: 'get',
+      url: '/universe/systems'
+    }).subscribe((systemIds) => {
+      return Promise.all(systemIds.map((systemId) => {
+        return this.esiService.update<System>({
+          method: 'get',
+          url: `/universe/regions/${systemId}`
+        }).subscribe((system) => {
+          return this.systemsCollection.updateOne({ system_id: systemId }, system)
+        });
+      }));
+    });
+  }
+
+  updateTypes(): Subscription {
+    return this.esiService.update<number[]>({
+      method: 'get',
+      url: '/universe/types'
+    }).subscribe((typeIds) => {
+      return Promise.all(typeIds.map((typeId) => {
+        return this.esiService.update<Type>({
+          method: 'get',
+          url: `/universe/types/${typeId}`
+        }).subscribe((type) => {
+          return this.typesCollection.updateOne({ type_id: typeId }, type)
+        });
+      }));
+    });
   }
 }

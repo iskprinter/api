@@ -7,6 +7,7 @@ import {
 } from 'src/controllers';
 import constellationRoutes from 'src/routes/constellations';
 import dealRoutes from 'src/routes/deals';
+import orderRoutes from 'src/routes/orders';
 import regionRoutes from 'src/routes/regions';
 import stationRoutes from 'src/routes/stations';
 import structureRoutes from 'src/routes/structures';
@@ -22,6 +23,7 @@ export default function indexRoutes(
   const router = express.Router();
   router.use('/constellations', constellationRoutes(stationTradingController));
   router.use('/deals', dealRoutes(stationTradingController));
+  router.use('/orders', orderRoutes(stationTradingController));
   router.use('/regions', regionRoutes(stationTradingController));
   router.use('/stations', stationRoutes(stationTradingController));
   router.use('/structures', structureRoutes(stationTradingController));

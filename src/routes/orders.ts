@@ -4,23 +4,21 @@ import Joi from 'joi';
 import { StationTradingController } from 'src/controllers'
 import { AuthService, Validator } from 'src/services';
 
-export default function structureRoutes(stationTradingController: StationTradingController): Router {
+export default function orderRoutes(stationTradingController: StationTradingController): Router {
   const authService = new AuthService();
+  const router = express.Router();
   const validator = new Validator();
-  const router = express.Router()
   router.get(
     '/',
     authService.validateAuth(),
     validator.validate({
       query: Joi.object({
-        'constellation-id': Joi.number(),
-        'region-id': Joi.number(),
-        'system-id': Joi.number(),
+        'region-id': Joi.number().required(),
+        'order-type': Joi.allow('all', 'buy', 'sell').required(),
       })
-        .oxor('constellation-id, region-id', 'system-id')
     }),
-    stationTradingController.getStructures(),
-    stationTradingController.updateStructures(),
+    stationTradingController.getOrders(),
+    stationTradingController.updateOrders(),
   );
   return router;
 }
