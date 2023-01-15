@@ -1,5 +1,5 @@
-export default interface Constellation {
-  constellation_id: number;
+export default class Constellation {
+  constellation_id!: number;
   name?: string;
   position?: {
     x: number

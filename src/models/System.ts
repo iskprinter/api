@@ -1,5 +1,5 @@
-export default interface System {
-  system_id: number;
+export default class System {
+  system_id!: number;
   constellation_id?: number;
   name?: string;
   planets?: {

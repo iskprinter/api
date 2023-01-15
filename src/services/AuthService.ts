@@ -40,7 +40,7 @@ export default class AuthService {
         access_token: accessToken,
         refresh_token: refreshToken
       } = eveResponse.data;
-      const token = new Token(accessToken, refreshToken)
+      const token = Object.assign(new Token(), { accessToken, refreshToken });
       log.info(`Generated new access/refresh token pair ${JSON.stringify(token)}.`);
       await token.save();
       return token;
@@ -90,7 +90,7 @@ export default class AuthService {
     } = eveResponse.data;
 
     // Save the new accessToken:refreshToken pair.
-    const token = new Token(accessToken, refreshToken)
+    const token = Object.assign(new Token(), { accessToken, refreshToken });
     return token.save()
   }
 

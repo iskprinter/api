@@ -1,5 +1,5 @@
-export default interface Structure {
-  structure_id: number;
+export default class Structure {
+  structure_id!: number;
   name?: string;
   owner_id?: number;
   position?: {

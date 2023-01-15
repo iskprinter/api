@@ -6,84 +6,98 @@ import { Collection } from "src/databases";
 import log from "src/tools/Logger";
 import { EsiRequest } from 'src/models';
 import { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
-import { Observable } from 'rxjs';
+import { Subject } from 'src/tools';
 
 export default class EsiService {
 
   constructor(public esiRequestCollection: Collection<EsiRequest>) { }
 
-  update<T>(config: AxiosRequestConfig = {}): Observable<T> {
-    return new Observable<T>((subscriber) => {
+  /**
+   * Usage:
+   * 
+   * await esiService
+   *   .update({ ...config })
+   *   .subscribe({ next, error, complete });
+   */
+  update<T>(config: AxiosRequestConfig): Subject<T> {
+    return new Subject(async (subscriber) => {
 
       const requestId = this._getRequestId(config);
-      this._getOngoingRequest(requestId)
-        .then((priorRequest) => {
+      const priorRequest = await this._getRequest(requestId);
 
-          if (!this._requestDataHasExpired(priorRequest)) {
-            log.info(`Data for requestId ${requestId} has not expired yet.`);
-            return;
-          }
+      if (!this._requestDataHasExpired(priorRequest)) {
+        log.info(`Data for requestId ${requestId} has not expired yet.`);
+        return;
+      }
 
-          // If the prior request was locked sooner than 1 hour ago, abort.
-          if (this._requestIsLocked(priorRequest)) {
-            log.info(`Request with requestId ${requestId} was locked sooner than 1 hour ago.`);
-            return;
-          }
+      // If the prior request was locked sooner than 1 hour ago, abort.
+      if (this._requestIsLocked(priorRequest)) {
+        log.info(`Request with requestId ${requestId} was locked sooner than 1 hour ago.`);
+        return;
+      }
 
-          return this._withRequestLocked(requestId, async () => {
-            return new Promise((resolve, reject) => {
-              this._getAllPages<T>(requestId, config, priorRequest).subscribe({
-                next: (data) => subscriber.next(data),
-                error: async (err) => {
-                  if (err instanceof AxiosError) {
-                    await this._handleError(requestId, err);
-                    return resolve();
-                  }
-                  return reject(err);
-                },
-                complete: () => resolve(),
-              });
-            });
-          }).then(
-            () => subscriber.complete(),
-            (err) => subscriber.error(err),
-          );
+      return this._withRequestLocked(requestId, async () => {
+        return this._getAllPages<T>(requestId, config, priorRequest).subscribe({
+          next: (data) => subscriber.next(data),
+          error: async (err) => {
+            log.info('inside update() error handler');
+            if (err instanceof AxiosError) {
+              switch (err.response?.status) {
+                case 304:
+                  log.info(`Data for request with requestId ${requestId} is unchanged.`);
+                  return this._updatePriorRequest(requestId, { expires: new Date(String(err.response?.headers.expires)).getTime() });
+                case 502:
+                  log.warn(err.message);
+                  return;
+                case 503:
+                  log.warn(err.message);
+                  return;
+                case 504:
+                  log.warn(err.message);
+                  return;
+              }
+            }
+            return subscriber.error?.(err);
+          },
         });
+      });
+
     });
   }
 
-  _getAllPages<T>(requestId: string, config: AxiosRequestConfig, priorRequest?: EsiRequest): Observable<T> {
-    return new Observable((subscriber) => {
+  _getAllPages<T>(requestId: string, config: AxiosRequestConfig, priorRequest?: EsiRequest): Subject<T> {
+    return new Subject(async (subscriber) => {
+      try {
 
-      log.info(`Submitting request for requestId '${requestId}'...`);
-      const page = 1;
-      this._getPage<T>(config, page, priorRequest)
-        .then(async (esiResponse) => {
-          subscriber.next(esiResponse.data);
-          const maxPages = esiResponse.headers['x-pages'] ? Number(esiResponse.headers['x-pages']) : 1;
+        log.info(`Submitting request for requestId '${requestId}'...`);
+        const page = 1;
+        const esiResponse = await this._getPage<T>(config, page, priorRequest);
+        await subscriber.next(esiResponse.data);
+        const maxPages = esiResponse.headers['x-pages'] ? Number(esiResponse.headers['x-pages']) : 1;
 
-          const requestPromises = [];
-          for (let page = 2; page <= maxPages; page += 1) {
-            requestPromises.push((async () => {
-              const esiResponse = await this._getPage<T>(config, page, priorRequest);
-              subscriber.next(esiResponse.data);
-            })());
-          }
-          await Promise.all(requestPromises);
+        const requestPromises = [];
+        for (let page = 2; page <= maxPages; page += 1) {
+          requestPromises.push((async () => {
+            const esiResponse = await this._getPage<T>(config, page, priorRequest);
+            await subscriber.next(esiResponse.data);
+          })());
+        }
+        await Promise.all(requestPromises);
 
-          await this._updatePriorRequest(requestId, {
-            method: config.method,
-            url: config.url,
-            expires: new Date(String(esiResponse.headers.expires)).getTime(),
-            etag: esiResponse.headers.etag as string,
-            ...(config.headers?.authorization ? { authorization: config.headers.authorization } : {}),
-            ...(config.params ? { params: config.params } : {}),
-          });
-        })
-        .then(
-          () => subscriber.complete(),
-          (err) => subscriber.error(err),
-        )
+        await this._updatePriorRequest(requestId, {
+          method: config.method,
+          url: config.url,
+          expires: new Date(String(esiResponse.headers.expires)).getTime(),
+          etag: esiResponse.headers.etag as string,
+          ...(config.headers?.authorization ? { authorization: config.headers.authorization } : {}),
+          ...(config.params ? { params: config.params } : {}),
+        });
+
+        return subscriber.complete?.();
+      } catch (err) {
+        log.info('inside _getAllPages() error handler');
+        await subscriber.error?.(err);
+      }
 
     });
   }
@@ -103,32 +117,12 @@ export default class EsiService {
     });
   }
 
-  async _handleError(requestId: string, err: AxiosError): Promise<void> {
-    switch (err.response?.status) {
-      case 304:
-        log.info(`Data for request with requestId ${requestId} is unchanged.`);
-        await this._updatePriorRequest(requestId, { expires: new Date(String(err.response?.headers.expires)).getTime() });
-        break;
-      case 502:
-        log.warn(err.message);
-        break;
-      case 503:
-        log.warn(err.message);
-        break;
-      case 504:
-        log.warn(err.message);
-        break;
-      default:
-        throw err;
-    }
-  }
-
-  async _getOngoingRequest(requestId: string): Promise<EsiRequest> {
+  async _getRequest(requestId: string): Promise<EsiRequest> {
     return this.esiRequestCollection.findOne({ requestId });
   }
 
   _requestDataHasExpired(request: EsiRequest) {
-    return !request || request.expires < Date.now();
+    return !request || !request.expires || request.expires < Date.now();
   }
 
   _requestIsLocked(request: EsiRequest) {
@@ -169,12 +163,12 @@ export default class EsiService {
     );
   }
 
-  async _withRequestLocked(requestId: string, next: () => Promise<void>): Promise<void> {
+  async _withRequestLocked<T>(requestId: string, next: () => Promise<T>): Promise<T> {
     // Lock the EsiRequest document.
     log.info(`Locking request with requestId '${requestId}'...`);
     await this._lockRequest(requestId);
     try {
-      await next();
+      return next();
     } finally {
       log.info(`Unlocking request with requestId '${requestId}'...`);
       await this._unlockRequest(requestId);

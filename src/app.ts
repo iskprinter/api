@@ -31,16 +31,16 @@ async function main(): Promise<void> {
   app.use(express.urlencoded({ extended: false }));
 
   // Load Collections
-  const constellationsCollection = database.getCollection<Constellation>('constellations');
-  const esiRequestCollection = database.getCollection<EsiRequest>('esiRequests');
-  const groupsCollection = database.getCollection<Group>('groups');
-  const ordersCollection = database.getCollection<Order>('orders');
-  const regionsCollection = database.getCollection<Region>('regions');
-  const stationsCollection = database.getCollection<Station>('stations');
-  const structuresCollection = database.getCollection<Structure>('structures');
-  const systemsCollection = database.getCollection<System>('systems');
-  const typesCollection = database.getCollection<Type>('types');
-  const tokensCollection = database.getCollection<Token>('tokens');
+  const constellationsCollection = database.getCollection(Constellation, 'constellations');
+  const esiRequestCollection = database.getCollection(EsiRequest, 'esiRequests');
+  const groupsCollection = database.getCollection(Group, 'groups');
+  const ordersCollection = database.getCollection(Order, 'orders');
+  const regionsCollection = database.getCollection(Region, 'regions');
+  const stationsCollection = database.getCollection(Station, 'stations');
+  const structuresCollection = database.getCollection(Structure, 'structures');
+  const systemsCollection = database.getCollection(System, 'systems');
+  const typesCollection = database.getCollection(Type, 'types');
+  const tokensCollection = database.getCollection(Token, 'tokens');
 
   // Create indexes, if necessary
   await Promise.all([

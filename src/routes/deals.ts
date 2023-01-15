@@ -19,7 +19,7 @@ export default function dealRoutes(stationTradingController: StationTradingContr
         .xor('station-id', 'structure-id')
     }),
     stationTradingController.getDeals(),
-    // stationTradingController.updateDeals(),
+    stationTradingController.updateDeals(),
   );
   return router;
 }

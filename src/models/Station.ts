@@ -1,4 +1,4 @@
-export default interface Station {
+export default class Station {
   max_dockable_ship_volume?: number;
   name?: string;
   office_rental_cost?: number;
@@ -12,7 +12,7 @@ export default interface Station {
   reprocessing_efficiency?: number;
   reprocessing_stations_take?: number;
   services?: string[];
-  station_id: number;
+  station_id!: number;
   system_id?: number;
   type_id?: number;
 }

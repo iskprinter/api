@@ -1,8 +1,9 @@
-import { Subscription } from "rxjs";
+import { AxiosError } from "axios";
 import { Collection } from "src/databases";
 import { Constellation, Deal, Group, Order, Region, Station, Structure, System, Type } from "src/models";
 import { DealFinder, InventoryTimesMarginStrategy } from "./DealFinder";
 import EsiService from "./EsiService";
+import log from 'src/tools/Logger';
 
 export default class DataProxy {
   constructor(
@@ -23,6 +24,9 @@ export default class DataProxy {
   }
 
   async getDeals(regionId: number): Promise<Deal[]> {
+
+    // Get the character's open market orders
+    // this.ordersCollection.find({ characterId });
 
     // Get the set of marketable types
     const typeIds = (await this.groupsCollection.find({}))
@@ -123,134 +127,182 @@ export default class DataProxy {
     return systems;
   }
 
-  updateConstellations(): Subscription {
+  async updateConstellations() {
     return this.esiService.update<number[]>({
       method: 'get',
       url: '/universe/constellations'
-    }).subscribe((constellationIds) => {
-      return Promise.all(constellationIds.map((constellationId) => {
-        return this.esiService.update<Constellation>({
-          method: 'get',
-          url: `/universe/constellations/${constellationId}`
-        }).subscribe((constellation) => {
-          this.constellationsCollection.updateOne({ constellation_id: constellationId }, constellation);
-        });
-      }));
+    }).subscribe({
+      next: (constellationIds) => {
+        return Promise.all(constellationIds.map((constellationId) => {
+          return this.esiService.update<Constellation>({
+            method: 'get',
+            url: `/universe/constellations/${constellationId}`
+          }).subscribe({
+            next: (constellation) => {
+              return this.constellationsCollection.updateOne({ constellation_id: constellationId }, constellation);
+            }
+          });
+        }));
+      }
     });
   }
 
-  updateMarketGroups(): Subscription {
+  async updateMarketGroups() {
     return this.esiService.update<number[]>({
       method: 'get',
       url: '/market/groups'
-    }).subscribe((groupIds) => {
-      return Promise.all(groupIds.map((groupId) => {
-        return this.esiService.update<Group>({
-          method: 'get',
-          url: `/market/groups/${groupId}`
-        }).subscribe((group) => {
-          return this.groupsCollection.updateOne({ market_group_id: groupId }, group);
-        });
-      }));
+    }).subscribe({
+      next: (groupIds) => {
+        return Promise.all(groupIds.map((groupId) => {
+          return this.esiService.update<Group>({
+            method: 'get',
+            url: `/market/groups/${groupId}`
+          }).subscribe({
+            next: (group) => {
+              return this.groupsCollection.updateOne({ market_group_id: groupId }, group);
+            }
+          });
+        }));
+      }
     });
   }
 
-  updateMarketOrders(regionId: number, orderType: string): Subscription {
+  updateMarketOrders(regionId: number, orderType: string) {
     return this.esiService.update<Order[]>({
       method: 'get',
       url: `/markets/${regionId}/orders`,
       params: { order_type: orderType }
-    }).subscribe((orders) => {
-      return this.ordersCollection.putMany(orders.map((order) => ({ ...order, region_id: regionId })));
+    }).subscribe({
+      next: (orders) => {
+        return this.ordersCollection.putMany(orders.map((order) => ({ ...order, region_id: regionId })));
+      }
     });
   }
 
-  updateRegions(): Subscription {
-    return this.esiService.update<number[]>({
+  async updateRegions() {
+    await this.esiService.update<number[]>({
       method: 'get',
       url: '/universe/regions'
-    }).subscribe((regionIds) => {
-      return Promise.all(regionIds.map((regionId) => {
-        return this.esiService.update<Region>({
-          method: 'get',
-          url: `/universe/regions/${regionId}`
-        }).subscribe((region) => {
-          return this.regionsCollection.updateOne({ region_id: regionId }, region);
-        });
-      }));
+    }).subscribe({
+      next: async (regionIds) => {
+        await this.regionsCollection.putMany(regionIds.map((regionId) => ({ region_id: regionId })));
+        return this.regionsCollection.delete({ region_id: { $nin: regionIds } });
+      }
     });
+
+    const regions = await this.regionsCollection.find({}, { projection: { region_id: 1 } });
+    return Promise.all(regions.map((region) => {
+      return this.esiService.update<Region>({
+        method: 'get',
+        url: `/universe/regions/${region.region_id}`
+      }).subscribe({
+        next: (region) => {
+          this.regionsCollection.updateOne({ region_id: region.region_id }, region);
+        }
+      });
+    }));
   }
 
-  updateStations(): Subscription {
-    return this.esiService.update<number[]>({
-      method: 'get',
-      url: '/universe/systems'
-    }).subscribe((systemIds) => {
-      return Promise.all(systemIds.map((systemId) => {
-        return this.esiService.update<System>({
-          method: 'get',
-          url: `/universe/systems/${systemId}`
-        }).subscribe((system) => {
-          this.systemsCollection.updateOne({ system_id: systemId }, system);
-          return Promise.all((system.stations || []).map((stationId) => {
-            return this.esiService.update<Station>({
-              method: 'get',
-              url: `/universe/station/${stationId}`
-            }).subscribe((station) => {
-              return this.stationsCollection.updateOne({ station_id: stationId }, station);
-            });
-          }));
-        });
-      }));
-    });
+  async updateStations() {
+    await this.updateSystems();
+    const systems = await this.systemsCollection.find({}, { projection: { stations: 1 } });
+    const stationIds = systems.reduce((stationIds: number[], system) => [...stationIds, ...(system.stations || [])], [])
+    await this.stationsCollection.delete({ station_id: { $nin: stationIds } });
+    return Promise.all(stationIds.map((stationId) => {
+      return this.esiService.update<Station>({
+        method: 'get',
+        url: `/universe/stations/${stationId}`
+      }).subscribe({
+        next: (station) => {
+          return this.stationsCollection.updateOne({ station_id: stationId }, station);
+        },
+        error: async (err) => {
+          if (err instanceof AxiosError) {
+            if (err.response?.status === 404) {
+              log.warn(`Deleting station with ID ${stationId}...`);
+              return this.stationsCollection.deleteOne({ station_id: stationId });
+            }
+          }
+          throw err;
+        }
+      });
+    }));
   }
 
-  updateStructures(authorization: string): Subscription {
-    return this.esiService.update<number[]>({
+  async updateStructures(authorization: string) {
+    await this.esiService.update<number[]>({
       method: 'get',
       url: '/universe/structures'
-    }).subscribe((structureIds) => {
-      return Promise.all(structureIds.map((structureId) => {
-        return this.esiService.update<Structure>({
-          method: 'get',
-          url: `/universe/structures/${structureId}`,
-          headers: { authorization }
-        }).subscribe((structure) => {
-          return this.structuresCollection.updateOne({ structure_id: structureId }, structure);
-        });
-      }));
+    }).subscribe({
+      next: async (structureIds) => {
+        await this.structuresCollection.putMany(structureIds.map((structureId) => ({ structure_id: structureId })));
+        return this.structuresCollection.delete({ structure_id: { $nin: structureIds } });
+      }
     });
+
+    const structures = await this.structuresCollection.find({}, { projection: { structure_id: 1 } });
+    return Promise.all(structures.map((structure) => {
+      return this.esiService.update<Structure>({
+        method: 'get',
+        url: `/universe/structures/${structure.structure_id}`,
+        headers: { authorization }
+      }).subscribe({
+        next: (structure) => {
+          return this.structuresCollection.updateOne({ structure_id: structure.structure_id }, structure);
+        },
+        error: async (err) => {
+          if (err instanceof AxiosError) {
+            if ([403, 404].includes(Number(err.response?.status))) {
+              log.warn(`Deleting structure with ID ${structure.structure_id}...`);
+              return this.stationsCollection.deleteOne({ structure_id: structure.structure_id });
+            }
+          }
+          throw err;
+        }
+      });
+    }));
   }
 
-  updateSystems(): Subscription {
-    return this.esiService.update<number[]>({
+  async updateSystems() {
+    await this.esiService.update<number[]>({
       method: 'get',
       url: '/universe/systems'
-    }).subscribe((systemIds) => {
-      return Promise.all(systemIds.map((systemId) => {
-        return this.esiService.update<System>({
-          method: 'get',
-          url: `/universe/regions/${systemId}`
-        }).subscribe((system) => {
-          return this.systemsCollection.updateOne({ system_id: systemId }, system)
-        });
-      }));
+    }).subscribe({
+      next: async (systemIds) => {
+        await this.systemsCollection.putMany(systemIds.map((systemId) => ({ system_id: systemId })));
+        return this.regionsCollection.delete({ system_id: { $nin: systemIds } });
+      }
     });
+    const systems = await this.systemsCollection.find({}, { projection: { system_id: 1 } });
+    await Promise.all(systems.map((system) => {
+      return this.esiService.update<System>({
+        method: 'get',
+        url: `/universe/systems/${system.system_id}`
+      }).subscribe({
+        next: (s) => {
+          return this.systemsCollection.updateOne({ system_id: system.system_id }, s);
+        }
+      })
+    }));
   }
 
-  updateTypes(): Subscription {
+  updateTypes() {
     return this.esiService.update<number[]>({
       method: 'get',
       url: '/universe/types'
-    }).subscribe((typeIds) => {
-      return Promise.all(typeIds.map((typeId) => {
-        return this.esiService.update<Type>({
-          method: 'get',
-          url: `/universe/types/${typeId}`
-        }).subscribe((type) => {
-          return this.typesCollection.updateOne({ type_id: typeId }, type)
-        });
-      }));
+    }).subscribe({
+      next: (typeIds) => {
+        return Promise.all(typeIds.map((typeId) => {
+          return this.esiService.update<Type>({
+            method: 'get',
+            url: `/universe/types/${typeId}`
+          }).subscribe({
+            next: (type) => {
+              return this.typesCollection.updateOne({ type_id: typeId }, type)
+            }
+          });
+        }));
+      }
     });
   }
 }
