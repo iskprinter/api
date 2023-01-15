@@ -20,7 +20,6 @@ class AuthController {
   getToken(): RequestHandler {
     return async (req: Request, res: Response) => {
       const tokenRequest: TokenPostRequest = req.body;
-      log.info(`Creating token for tokenRequest ${JSON.stringify(tokenRequest)}...`);
       let token: Token;
       switch (tokenRequest.proofType) {
         case 'authorizationCode': {
@@ -42,7 +41,6 @@ class AuthController {
           throw new BadRequestError("Expected 'grantType' to be either 'authorizationCode' or 'priorAccessToken'.")
       }
 
-      log.info(`Successfully created token for tokenRequest ${JSON.stringify(tokenRequest)}.`);
       return res.json(token.accessToken)
     }
   }

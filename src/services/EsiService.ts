@@ -40,7 +40,6 @@ export default class EsiService {
         return this._getAllPages<T>(requestId, config, priorRequest).subscribe({
           next: (data) => subscriber.next(data),
           error: async (err) => {
-            log.info('inside update() error handler');
             if (err instanceof AxiosError) {
               switch (err.response?.status) {
                 case 304:
@@ -95,7 +94,6 @@ export default class EsiService {
 
         return subscriber.complete?.();
       } catch (err) {
-        log.info('inside _getAllPages() error handler');
         await subscriber.error?.(err);
       }
 

@@ -128,67 +128,100 @@ export default class DataProxy {
   }
 
   async updateConstellations() {
-    return this.esiService.update<number[]>({
+    let constellationIdsHaveChanged = false;
+    let newestConstellationIds: number[] = [];
+    await this.esiService.update<number[]>({
       method: 'get',
       url: '/universe/constellations'
     }).subscribe({
       next: (constellationIds) => {
-        return Promise.all(constellationIds.map((constellationId) => {
-          return this.esiService.update<Constellation>({
-            method: 'get',
-            url: `/universe/constellations/${constellationId}`
-          }).subscribe({
-            next: (constellation) => {
-              return this.constellationsCollection.updateOne({ constellation_id: constellationId }, constellation);
-            }
-          });
-        }));
+        constellationIdsHaveChanged = true;
+        newestConstellationIds = newestConstellationIds.concat(constellationIds);
+        return this.constellationsCollection.putMany(constellationIds.map((constellationId) => ({ constellation_id: constellationId })));
       }
     });
+    if (constellationIdsHaveChanged) {
+      await this.constellationsCollection.delete({ constellation_id: { $nin: newestConstellationIds  } });
+    }
+
+    const constellations = await this.constellationsCollection.find({}, { projection: { constellation_id: 1 } });
+    return Promise.all(constellations.map((constellation) => {
+      return this.esiService.update<Constellation>({
+        method: 'get',
+        url: `/universe/constellations/${constellation.constellation_id}`
+      }).subscribe({
+        next: (c) => {
+          return this.constellationsCollection.updateOne({ constellation_id: constellation.constellation_id }, c);
+        }
+      });
+    }));
   }
 
   async updateMarketGroups() {
-    return this.esiService.update<number[]>({
+    let groupIdsHaveChanged = false;
+    let newestGroupIds: number[] = [];
+    await this.esiService.update<number[]>({
       method: 'get',
       url: '/market/groups'
     }).subscribe({
       next: (groupIds) => {
-        return Promise.all(groupIds.map((groupId) => {
-          return this.esiService.update<Group>({
-            method: 'get',
-            url: `/market/groups/${groupId}`
-          }).subscribe({
-            next: (group) => {
-              return this.groupsCollection.updateOne({ market_group_id: groupId }, group);
-            }
-          });
-        }));
+        groupIdsHaveChanged = true;
+        newestGroupIds = newestGroupIds.concat(groupIds);
+        return this.groupsCollection.putMany(groupIds.map((groupId) => ({ market_group_id: groupId })));
       }
     });
+    if (groupIdsHaveChanged) {
+      await this.groupsCollection.delete({ market_group_id: { $nin: newestGroupIds  } });
+    }
+
+    const groups = await this.groupsCollection.find({}, { projection: { market_group_id: 1 } });
+    return Promise.all(groups.map((group) => {
+      return this.esiService.update<Group>({
+        method: 'get',
+        url: `/market/groups/${group.market_group_id}`
+      }).subscribe({
+        next: (g) => {
+          return this.groupsCollection.updateOne({ market_group_id: group.market_group_id }, g);
+        }
+      });
+    }));
   }
 
-  updateMarketOrders(regionId: number, orderType: string) {
-    return this.esiService.update<Order[]>({
+  async updateMarketOrders(regionId: number, orderType: string) {
+    let orderIdsHaveChanged = false;
+    let newestOrderIds: number[] = [];
+    await this.esiService.update<Order[]>({
       method: 'get',
       url: `/markets/${regionId}/orders`,
       params: { order_type: orderType }
     }).subscribe({
       next: (orders) => {
+        orderIdsHaveChanged = true;
+        newestOrderIds = newestOrderIds.concat(orders.map((order) => order.order_id));
         return this.ordersCollection.putMany(orders.map((order) => ({ ...order, region_id: regionId })));
       }
     });
+    if (orderIdsHaveChanged) {
+      await this.ordersCollection.delete({ region_id: regionId, order_id: { $nin: newestOrderIds  } });
+    }
   }
 
   async updateRegions() {
+    let regionIdsHaveChanged = false;
+    let newestRegionIds: number[] = [];
     await this.esiService.update<number[]>({
       method: 'get',
       url: '/universe/regions'
     }).subscribe({
       next: async (regionIds) => {
-        await this.regionsCollection.putMany(regionIds.map((regionId) => ({ region_id: regionId })));
-        return this.regionsCollection.delete({ region_id: { $nin: regionIds } });
+        regionIdsHaveChanged = true;
+        newestRegionIds = newestRegionIds.concat(regionIds);
+        return this.regionsCollection.putMany(regionIds.map((regionId) => ({ region_id: regionId })));
       }
     });
+    if (regionIdsHaveChanged) {
+      await this.regionsCollection.delete({ region_id: { $nin: newestRegionIds  } });
+    }
 
     const regions = await this.regionsCollection.find({}, { projection: { region_id: 1 } });
     return Promise.all(regions.map((region) => {
@@ -196,8 +229,8 @@ export default class DataProxy {
         method: 'get',
         url: `/universe/regions/${region.region_id}`
       }).subscribe({
-        next: (region) => {
-          this.regionsCollection.updateOne({ region_id: region.region_id }, region);
+        next: (r) => {
+          this.regionsCollection.updateOne({ region_id: region.region_id }, r);
         }
       });
     }));
@@ -213,32 +246,29 @@ export default class DataProxy {
         method: 'get',
         url: `/universe/stations/${stationId}`
       }).subscribe({
-        next: (station) => {
-          return this.stationsCollection.updateOne({ station_id: stationId }, station);
-        },
-        error: async (err) => {
-          if (err instanceof AxiosError) {
-            if (err.response?.status === 404) {
-              log.warn(`Deleting station with ID ${stationId}...`);
-              return this.stationsCollection.deleteOne({ station_id: stationId });
-            }
-          }
-          throw err;
+        next: (s) => {
+          return this.stationsCollection.updateOne({ station_id: stationId }, s);
         }
       });
     }));
   }
 
   async updateStructures(authorization: string) {
+    let structureIdsHaveChanged = false;
+    let newestStructureIds: number[] = [];
     await this.esiService.update<number[]>({
       method: 'get',
       url: '/universe/structures'
     }).subscribe({
       next: async (structureIds) => {
-        await this.structuresCollection.putMany(structureIds.map((structureId) => ({ structure_id: structureId })));
-        return this.structuresCollection.delete({ structure_id: { $nin: structureIds } });
+        structureIdsHaveChanged = true;
+        newestStructureIds = newestStructureIds.concat(structureIds);
+        return this.structuresCollection.putMany(structureIds.map((structureId) => ({ structure_id: structureId })));
       }
     });
+    if (structureIdsHaveChanged) {
+      await this.structuresCollection.delete({ structure_id: { $nin: newestStructureIds  } });
+    }
 
     const structures = await this.structuresCollection.find({}, { projection: { structure_id: 1 } });
     return Promise.all(structures.map((structure) => {
@@ -247,14 +277,14 @@ export default class DataProxy {
         url: `/universe/structures/${structure.structure_id}`,
         headers: { authorization }
       }).subscribe({
-        next: (structure) => {
-          return this.structuresCollection.updateOne({ structure_id: structure.structure_id }, structure);
+        next: (s) => {
+          return this.structuresCollection.updateOne({ structure_id: structure.structure_id }, s);
         },
         error: async (err) => {
           if (err instanceof AxiosError) {
-            if ([403, 404].includes(Number(err.response?.status))) {
-              log.warn(`Deleting structure with ID ${structure.structure_id}...`);
-              return this.stationsCollection.deleteOne({ structure_id: structure.structure_id });
+            if (err.response?.status === 403) {
+              log.warn(`Deleting structure with ID ${structure.structure_id} due to 403 Forbidden response...`);
+              return this.structuresCollection.deleteOne({ structure_id: structure.structure_id });
             }
           }
           throw err;
@@ -264,17 +294,24 @@ export default class DataProxy {
   }
 
   async updateSystems() {
+    let systemIdsHaveChanged = false;
+    let newestSystemIds: number[] = [];
     await this.esiService.update<number[]>({
       method: 'get',
       url: '/universe/systems'
     }).subscribe({
       next: async (systemIds) => {
-        await this.systemsCollection.putMany(systemIds.map((systemId) => ({ system_id: systemId })));
-        return this.regionsCollection.delete({ system_id: { $nin: systemIds } });
+        systemIdsHaveChanged = true;
+        newestSystemIds = newestSystemIds.concat(systemIds);
+        return this.systemsCollection.putMany(systemIds.map((systemId) => ({ system_id: systemId })));
       }
     });
+    if (systemIdsHaveChanged) {
+      await this.systemsCollection.delete({ system_id: { $nin: newestSystemIds  } });
+    }
+
     const systems = await this.systemsCollection.find({}, { projection: { system_id: 1 } });
-    await Promise.all(systems.map((system) => {
+    return Promise.all(systems.map((system) => {
       return this.esiService.update<System>({
         method: 'get',
         url: `/universe/systems/${system.system_id}`
@@ -286,23 +323,33 @@ export default class DataProxy {
     }));
   }
 
-  updateTypes() {
-    return this.esiService.update<number[]>({
+  async updateTypes() {
+    let typeIdsHaveChanged = false;
+    let newestTypeIds: number[] = [];
+    await this.esiService.update<number[]>({
       method: 'get',
       url: '/universe/types'
     }).subscribe({
-      next: (typeIds) => {
-        return Promise.all(typeIds.map((typeId) => {
-          return this.esiService.update<Type>({
-            method: 'get',
-            url: `/universe/types/${typeId}`
-          }).subscribe({
-            next: (type) => {
-              return this.typesCollection.updateOne({ type_id: typeId }, type)
-            }
-          });
-        }));
+      next: async (typeIds) => {
+        typeIdsHaveChanged = true;
+        newestTypeIds = newestTypeIds.concat(typeIds);
+        await this.typesCollection.putMany(typeIds.map((typeId) => ({ type_id: typeId })));
       }
     });
+    if (typeIdsHaveChanged) {
+      await this.typesCollection.delete({ type_id: { $nin: newestTypeIds  } });
+    }
+
+    const types = await this.typesCollection.find({}, { projection: { type_id: 1 } });
+    return Promise.all(types.map((type) => {
+      return this.esiService.update<System>({
+        method: 'get',
+        url: `/universe/types/${type.type_id}`
+      }).subscribe({
+        next: (t) => {
+          return this.typesCollection.updateOne({ type_id: type.type_id }, t);
+        }
+      })
+    }));
   }
 }

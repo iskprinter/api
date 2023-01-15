@@ -161,7 +161,6 @@ class StationTradingController {
     let systemId;
 
     if (stationId) {
-      log.info('getting systemId from stationId...');
       const stations = await this.dataProxy.getStations({ stationId });
       if (stations.length !== 1) {
         throw new Error(`Unable to find exactly 1 station with with requested station_id ${stationId}.`);
@@ -171,7 +170,6 @@ class StationTradingController {
     }
 
     if (structureId) {
-      log.info('getting systemId from structureId...');
       const structures = await this.dataProxy.getStructures({ structureId });
       if (structures.length !== 1) {
         throw new Error(`Unable to find exactly 1 structure with with requested structure_id ${structureId}.`);
@@ -180,7 +178,6 @@ class StationTradingController {
       systemId = structure.solar_system_id;
     }
 
-    log.info('getting regionId from systemId...');
     const constellations = await this.dataProxy.getConstellations({ systems: systemId });
     if (constellations.length !== 1) {
       throw new Error(`Unable to find exactly 1 constellation with with requested system_id ${systemId}.`);

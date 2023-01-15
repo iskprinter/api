@@ -8,18 +8,9 @@ export default class InventoryTimesMarginStrategy implements DealFinderStrategy 
   getDeals(): Deal[] {
 
     log.info('Computing deals...');
-    log.info('Computing deals (creating type dictionary)...');
-
     const typeNames = this.types
       .filter((type) => !type.name?.match(/Blueprint/))
       .reduce((typeNames: { [key: number]: string }, type) => ({ ...typeNames, [type.type_id]: String(type.name) }), {});
-    log.info('Computing deals (identifing types on the market)...');
-    // const validTypeIds = Object.keys(typeNames).map(Number);
-    // const typesIds = this.orders
-    //   .filter((order) => validTypeIds.includes(Number(order.type_id)))
-    //   .reduce((typeIds: number[], order) => Array.from(new Set([...typeIds, order.type_id])), []);
-
-    log.info('Computing deals (processing)...');
     return Object.entries(typeNames)
       .map<Deal>(([ typeId, typeName ]) => this.orders
         .filter((order) => order.type_id === Number(typeId))
