@@ -1,13 +1,25 @@
+import { AssertionError } from 'assert';
 import { NextFunction, Request, RequestHandler, Response } from 'express'
+import { Station } from 'src/models';
 
 import { AuthService, DataProxy } from 'src/services';
-import log from 'src/tools/Logger';
 
 class StationTradingController {
   constructor(
     public authService: AuthService,
     public dataProxy: DataProxy
   ) { }
+
+  getCharacters(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const authorization = String(req.headers.authorization);
+      const characterId = this.authService.getCharacterIdFromAuthorization(authorization);
+      const characters = await this.dataProxy.getCharacters({ character_id: characterId });
+      res.json({ characters });
+      return next();
+    }
+  }
+
 
   getConstellations(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
@@ -19,11 +31,28 @@ class StationTradingController {
 
   getDeals(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
-      const regionId = await this._getRegionIdFromLocation({
-        stationId: Number(req.query['station-id']),
-        structureId: Number(req.query['structure-id']),
-      })
-      const deals = await this.dataProxy.getDeals(regionId);
+      const authorization = String(req.headers.authorization);
+      const characterId = this.authService.getCharacterIdFromAuthorization(authorization);
+      const characters = await this.dataProxy.getCharacters({ character_id: characterId });
+      if (characters.length === 0) {
+        res.json({ deals: [] });
+        return next();
+      }
+      const character = characters[0];
+
+      const stationId = Number(req.query['station-id']);
+      const structureId = Number(req.query['structure-id']);
+      let regionId;
+      if (stationId) {
+        const station = (await this.dataProxy.getStations({ stationId }))[0];
+        regionId = (await station.getRegion()).region_id;
+      } else if (structureId) {
+        const structure = (await this.dataProxy.getStructures({ structureId }))[0];
+        regionId = (await structure.getRegion()).region_id;
+      } else {
+        throw new AssertionError({ message: 'Our validator has failed us.' });
+      }
+      const deals = await this.dataProxy.getDeals(character, regionId);
       res.json({ deals });
       return next();
     };
@@ -88,24 +117,44 @@ class StationTradingController {
     }
   }
 
+  updateCharacters(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const authorization = String(req.headers.authorization);
+      const characterId = this.authService.getCharacterIdFromAuthorization(authorization);
+      await this.dataProxy.updateCharacters(characterId);
+      return next();
+    }
+  }
+
   updateDeals(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
-
-      this.dataProxy.updateTypes();
-
-      const regionId = await this._getRegionIdFromLocation({
-        stationId: Number(req.query['station-id']),
-        structureId: Number(req.query['structure-id']),
-      });
+      const stationId = Number(req.query['station-id']);
+      const structureId = Number(req.query['structure-id']);
+      let regionId;
+      if (stationId) {
+        const station = (await this.dataProxy.getStations({ stationId }))[0];
+        regionId = (await station.getRegion()).region_id;
+      } else if (structureId) {
+        const structure = (await this.dataProxy.getStructures({ structureId }))[0];
+        regionId = (await structure.getRegion()).region_id;
+      } else {
+        throw new AssertionError({ message: 'Our validator has failed us.' });
+      }
       const orderType = 'all';
-      this.dataProxy.updateMarketOrders(regionId, orderType);
+      const authorization = String(req.headers.authorization);
+      const characterId = this.authService.getCharacterIdFromAuthorization(authorization);
+      await Promise.all([
+        this.dataProxy.updateTypes(),
+        this.dataProxy.updateMarketOrders(regionId, orderType),
+        this.dataProxy.updateCharacters(characterId)
+      ]);
       return next();
     }
   }
 
   updateMarketGroups(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
-      this.dataProxy.updateMarketGroups();
+      await this.dataProxy.updateMarketGroups();
       return next();
     };
   }
@@ -114,14 +163,14 @@ class StationTradingController {
     return async (req: Request, res: Response, next: NextFunction) => {
       const regionId = Number(req.query['region-id']);
       const orderType = String(req.query['order-type']);
-      this.dataProxy.updateMarketOrders(regionId, orderType);
+      await this.dataProxy.updateMarketOrders(regionId, orderType);
       return next();
     }
   }
 
   updateRegions(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
-      this.dataProxy.updateRegions();
+      await this.dataProxy.updateRegions();
       return next();
     }
   }
@@ -129,62 +178,34 @@ class StationTradingController {
   updateStations(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
       this.dataProxy.updateConstellations();
-      this.dataProxy.updateStations();
+      await this.dataProxy.updateStations();
       return next();
     };
   }
 
   updateStructures(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
-      this.dataProxy.updateConstellations();
-      this.dataProxy.updateStructures(String(req.headers.authorization));
+      await this.dataProxy.updateConstellations();
+      const authorization = String(req.headers.authorization);
+      await this.dataProxy.updateStructures(authorization);
       return next();
     };
   }
 
   updateSystems(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
-      this.dataProxy.updateSystems()
+      await this.dataProxy.updateSystems()
       return next()
     };
   }
 
   updateTypes(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
-      this.dataProxy.updateTypes();
+      await this.dataProxy.updateTypes();
       return next()
     };
   }
 
-  async _getRegionIdFromLocation({ stationId, structureId }: { stationId?: number, structureId?: number }): Promise<number> {
-
-    let systemId;
-
-    if (stationId) {
-      const stations = await this.dataProxy.getStations({ stationId });
-      if (stations.length !== 1) {
-        throw new Error(`Unable to find exactly 1 station with with requested station_id ${stationId}.`);
-      }
-      const station = stations[0];
-      systemId = station.system_id;
-    }
-
-    if (structureId) {
-      const structures = await this.dataProxy.getStructures({ structureId });
-      if (structures.length !== 1) {
-        throw new Error(`Unable to find exactly 1 structure with with requested structure_id ${structureId}.`);
-      }
-      const structure = structures[0];
-      systemId = structure.solar_system_id;
-    }
-
-    const constellations = await this.dataProxy.getConstellations({ systems: systemId });
-    if (constellations.length !== 1) {
-      throw new Error(`Unable to find exactly 1 constellation with with requested system_id ${systemId}.`);
-    }
-    const constellation = constellations[0];
-    return Number(constellation.region_id);
-  }
 }
 
 export default StationTradingController;

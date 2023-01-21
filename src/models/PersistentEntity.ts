@@ -1,5 +1,5 @@
 export default interface PersistentEntity {
 
-    save(): Promise<PersistentEntity>;
+  save(): Promise<PersistentEntity>;
 
 }

@@ -1,18 +1,13 @@
-export default class Order {
-  duration!: number;
-  is_buy_order?: boolean;
-  escrow?: number;
-  issued!: string;
-  is_corporation?: boolean;
-  location_id!: number;
-  min_volume?: number;
-  order_id!: number;
-  price!: number;
-  range!: string;
-  state?: string;
-  region_id?: number;
-  system_id!: number;
-  type_id!: number;
-  volume_remain!: number;
-  volume_total!: number;
+import { DataProxy } from "src/services";
+import Model from "./Model";
+import OrderData from "./OrderData";
+
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface Order extends OrderData { }
+class Order extends Model implements OrderData {
+  constructor(dataProxy: DataProxy, orderData: OrderData) {
+    super(dataProxy);
+    Object.assign(this, orderData);
+  }
 }
+export default Order;

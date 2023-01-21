@@ -1,6 +1,7 @@
 export default class Deal {
-  typeName!: string;
-  sellPrice!: number;
   buyPrice!: number;
+  feesPerUnit!: number;
+  sellPrice!: number;
+  typeName!: string;
   volume!: number;
 }

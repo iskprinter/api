@@ -3,14 +3,19 @@ import { MongoClient, Collection } from 'mongodb'
 
 import PersistentEntity from './PersistentEntity'
 import log from 'src/tools/Logger';
+import TokenData from './TokenData';
 
 
-export default class Token implements PersistentEntity {
+export default class Token implements PersistentEntity, TokenData {
   static DB_NAME = 'iskprinter';
   static COLLECTION_NAME = 'tokens';
 
-  public accessToken!: string;
-  public refreshToken!: string;
+  public accessToken: string;
+  public refreshToken: string;
+  constructor(tokenData: TokenData) {
+    this.accessToken = tokenData.accessToken;
+    this.refreshToken = tokenData.refreshToken;
+  }
 
   static async withCollection(next: (collection: Collection<any>) => Promise<any>): Promise<any> {
     const dbUrl = env.get('DB_URL').required().asUrlString();
@@ -20,10 +25,10 @@ export default class Token implements PersistentEntity {
     await client.connect()
 
     log.info(`Opening database ${Token.DB_NAME}...`);
-    const db = await client.db(Token.DB_NAME)
+    const db = client.db(Token.DB_NAME)
 
     log.info(`Opening collection ${Token.COLLECTION_NAME}...`);
-    const collection = await db.collection(Token.COLLECTION_NAME)
+    const collection = db.collection(Token.COLLECTION_NAME)
 
     const updatedEntity = await next(collection);
 

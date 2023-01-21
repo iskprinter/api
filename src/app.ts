@@ -8,10 +8,21 @@ import { MongoDatabase } from 'src/databases';
 import indexRoutes from 'src/routes/index';
 import { HttpError } from 'src/errors';
 import log from 'src/tools/Logger';
-import { Constellation, EsiRequest, Group, Order, Region, Station, Structure, System, Token, Type } from 'src/models';
-import { AuthService, DataProxy as DataProxy } from 'src/services';
+import {
+  CharacterData,
+  ConstellationData,
+  EsiRequestData,
+  GroupData,
+  OrderData,
+  RegionData,
+  StationData,
+  SystemData,
+  TokenData,
+  TypeData
+} from 'src/models';
+import { AuthService, DataProxy as DataProxy, EsiService } from 'src/services';
 import { AuthController, HealthcheckController, StationTradingController } from './controllers';
-import EsiService from './services/EsiService';
+import StructureData from './models/StructureData';
 
 async function main(): Promise<void> {
 
@@ -31,19 +42,21 @@ async function main(): Promise<void> {
   app.use(express.urlencoded({ extended: false }));
 
   // Load Collections
-  const constellationsCollection = database.getCollection(Constellation, 'constellations');
-  const esiRequestCollection = database.getCollection(EsiRequest, 'esiRequests');
-  const groupsCollection = database.getCollection(Group, 'groups');
-  const ordersCollection = database.getCollection(Order, 'orders');
-  const regionsCollection = database.getCollection(Region, 'regions');
-  const stationsCollection = database.getCollection(Station, 'stations');
-  const structuresCollection = database.getCollection(Structure, 'structures');
-  const systemsCollection = database.getCollection(System, 'systems');
-  const typesCollection = database.getCollection(Type, 'types');
-  const tokensCollection = database.getCollection(Token, 'tokens');
+  const charactersCollection = database.getCollection<CharacterData>('characters');
+  const constellationsCollection = database.getCollection<ConstellationData>('constellations');
+  const esiRequestCollection = database.getCollection<EsiRequestData>('esiRequests');
+  const groupsCollection = database.getCollection<GroupData>('groups');
+  const ordersCollection = database.getCollection<OrderData>('orders');
+  const regionsCollection = database.getCollection<RegionData>('regions');
+  const stationsCollection = database.getCollection<StationData>('stations');
+  const structuresCollection = database.getCollection<StructureData>('structures');
+  const systemsCollection = database.getCollection<SystemData>('systems');
+  const typesCollection = database.getCollection<TypeData>('types');
+  const tokensCollection = database.getCollection<TokenData>('tokens');
 
   // Create indexes, if necessary
   await Promise.all([
+    charactersCollection.createIndex({ character_id: 1 }),
     constellationsCollection.createIndex({ constellation_id: 1 }),
     esiRequestCollection.createIndex({ requestId: 1 }),
     groupsCollection.createIndex({ market_group_id: 1 }),
@@ -61,6 +74,7 @@ async function main(): Promise<void> {
   const esiService = new EsiService(esiRequestCollection);
   const dataProxy = new DataProxy(
     esiService,
+    charactersCollection,
     constellationsCollection,
     groupsCollection,
     ordersCollection,

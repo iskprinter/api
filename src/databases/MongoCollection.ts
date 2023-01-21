@@ -3,11 +3,11 @@ import Collection from './Collection';
 
 export default class MongoCollection<T extends object> implements Collection<T> {
 
-  constructor(public TConstructor: new() => T , public collection: mongodb.Collection) {}
+  constructor(public collection: mongodb.Collection) {}
 
   async aggregate(pipeline: Array<object>): Promise<Array<T>> {
     const results = await this.collection.aggregate(pipeline).toArray();
-    return results.map((r) => Object.assign(new this.TConstructor(), r)) as Array<T>;
+    return results as T[];
   }
 
   async createIndex(keys: object): Promise<string> {
@@ -17,13 +17,13 @@ export default class MongoCollection<T extends object> implements Collection<T> 
   async delete(query: object): Promise<T[]> {
     const deletedItems = await this.find(query);
     await this.collection.deleteMany(query);
-    return Object.assign(new this.TConstructor(), deletedItems);
+    return deletedItems as T[];
   }
 
   async deleteOne(query: object): Promise<T> {
     const deletedItem = await this.findOne(query);
     await this.collection.deleteOne(query);
-    return Object.assign(new this.TConstructor(), deletedItem);
+    return deletedItem;
   }
 
   async find(query: object, options?: { projection: object }): Promise<Array<T>> {
@@ -34,18 +34,18 @@ export default class MongoCollection<T extends object> implements Collection<T> 
         _id: 0
       }
     }).toArray();
-    return results.map((r) => Object.assign(new this.TConstructor(), r));
+    return results as T[];
   }
 
   async findOne(query: object): Promise<T> {
     const result = await this.collection.findOne(query, { projection: { _id: 0 }});
-    return Object.assign(new this.TConstructor(), result);
+    return result as T;
   }
 
   async insertOne(document: T): Promise<T> {
     const insertResult = await this.collection.insertOne(document as OptionalId<Document>);
     const result = this.collection.findOne({ _id: insertResult.insertedId }, { projection: { _id: 0 }});
-    return Object.assign(new this.TConstructor(), result);
+    return result as T;
   }
 
   async putMany(documents: Array<T>): Promise<Array<T>> {
@@ -64,7 +64,7 @@ export default class MongoCollection<T extends object> implements Collection<T> 
       );
       insertedDocs.push(insertedDoc);
     }
-    return insertedDocs.map((r) => Object.assign(new this.TConstructor(), r));
+    return insertedDocs as T[];
   }
 
   async updateOne(query: object, document: Partial<T>): Promise<T> {
@@ -74,7 +74,7 @@ export default class MongoCollection<T extends object> implements Collection<T> 
       {upsert: true}
     );
     const result = this.collection.findOne({ _id: updateResult.upsertedId }, { projection: { _id: 0 }});
-    return Object.assign(new this.TConstructor(), result);
+    return result as T;
   }
 
 }

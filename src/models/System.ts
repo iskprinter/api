@@ -1,20 +1,13 @@
-export default class System {
-  system_id!: number;
-  constellation_id?: number;
-  name?: string;
-  planets?: {
-    asteroid_belts?: number,
-    moons?: number,
-    planet_id: number,
-  }[];
-  position?: {
-    x: number,
-    y: number,
-    z: number,
-  };
-  security_class?: string;
-  security_status?: number;
-  star_id?: number;
-  stargates?: number[];
-  stations?: number[];
+import { DataProxy } from "src/services";
+import Model from "./Model";
+import SystemData from "./SystemData";
+
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface System extends SystemData { }
+class System extends Model implements SystemData {
+  constructor(dataProxy: DataProxy, systemData: SystemData) {
+    super(dataProxy);
+    Object.assign(this, systemData);
+  }
 }
+export default System;

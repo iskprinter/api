@@ -1,18 +1,20 @@
-export default class Station {
-  max_dockable_ship_volume?: number;
-  name?: string;
-  office_rental_cost?: number;
-  owner?: number;
-  position?: {
-    x: number,
-    y: number,
-    z: number,
-  };
-  race_id?: number;
-  reprocessing_efficiency?: number;
-  reprocessing_stations_take?: number;
-  services?: string[];
-  station_id!: number;
-  system_id?: number;
-  type_id?: number;
+import { DataProxy } from "src/services";
+import Model from "./Model";
+import Region from "./Region";
+import StationData from "./StationData";
+
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface Station extends StationData { }
+class Station extends Model implements StationData {
+  constructor(dataProxy: DataProxy, stationData: StationData) {
+    super(dataProxy);
+    Object.assign(this, stationData);
+  }
+
+  async getRegion(): Promise<Region> {
+    const constellation = (await this._dataProxy.getConstellations({ systems: this.system_id }))[0]
+    const region = await constellation.getRegion();
+    return region;
+  }
 }
+export default Station;

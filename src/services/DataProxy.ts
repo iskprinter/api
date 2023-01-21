@@ -1,6 +1,27 @@
 import { AxiosError } from "axios";
 import { Collection } from "src/databases";
-import { Constellation, Deal, Group, Order, Region, Station, Structure, System, Type } from "src/models";
+import {
+  Character,
+  CharacterData,
+  Constellation,
+  ConstellationData,
+  Deal,
+  Group,
+  GroupData,
+  Order,
+  OrderData,
+  Region,
+  RegionData,
+  Skills,
+  Station,
+  StationData,
+  Structure,
+  StructureData,
+  System,
+  SystemData,
+  Type,
+  TypeData
+} from "src/models";
 import { DealFinder, InventoryTimesMarginStrategy } from "./DealFinder";
 import EsiService from "./EsiService";
 import log from 'src/tools/Logger';
@@ -8,22 +29,30 @@ import log from 'src/tools/Logger';
 export default class DataProxy {
   constructor(
     public esiService: EsiService,
-    public constellationsCollection: Collection<Constellation>,
-    public groupsCollection: Collection<Group>,
-    public ordersCollection: Collection<Order>,
-    public regionsCollection: Collection<Region>,
-    public stationsCollection: Collection<Station>,
-    public structuresCollection: Collection<Structure>,
-    public systemsCollection: Collection<System>,
-    public typesCollection: Collection<Type>,
+    public charactersCollection: Collection<CharacterData>,
+    public constellationsCollection: Collection<ConstellationData>,
+    public groupsCollection: Collection<GroupData>,
+    public ordersCollection: Collection<OrderData>,
+    public regionsCollection: Collection<RegionData>,
+    public stationsCollection: Collection<StationData>,
+    public structuresCollection: Collection<StructureData>,
+    public systemsCollection: Collection<SystemData>,
+    public typesCollection: Collection<TypeData>,
   ) { }
 
+  async getCharacters(query: object = {}): Promise<Character[]> {
+    const characterData = await this.charactersCollection.find(query);
+    const characters = characterData.map((characterDatum) => new Character(this, characterDatum));
+    return characters;
+  }
+
   async getConstellations(query: object = {}): Promise<Constellation[]> {
-    const constellations = await this.constellationsCollection.find(query);
+    const constellationData = await this.constellationsCollection.find(query);
+    const constellations = constellationData.map((constellationDatum) => new Constellation(this, constellationDatum));
     return constellations;
   }
 
-  async getDeals(regionId: number): Promise<Deal[]> {
+  async getDeals(character: Character, regionId: number): Promise<Deal[]> {
 
     // Get the character's open market orders
     // this.ordersCollection.find({ characterId });
@@ -34,79 +63,93 @@ export default class DataProxy {
       .filter((group) => group.market_group_id !== 150 && group.parent_group_id !== 150) // Skill books
       .reduce((typeIds: number[], group) => [...typeIds, ...(group.types || [])], []);
 
-    const orders: Order[] = await this.ordersCollection.find({ region_id: regionId });
+    const orderData: OrderData[] = await this.ordersCollection.find({ region_id: regionId });
+    const orders = orderData.map((orderDatum) => new Order(this, orderDatum));
 
-    const types: Type[] = await this.typesCollection.find({ type_id: { $in: typeIds } });
+    const typeData: TypeData[] = await this.typesCollection.find({ type_id: { $in: typeIds } });
+    const types = typeData.map((typeDatum) => new Type(this, typeDatum));
 
     // Compute deals
-    const strategy = new InventoryTimesMarginStrategy(types, orders);
+    const strategy = new InventoryTimesMarginStrategy(character, types, orders);
     const dealFinder = new DealFinder(strategy);
     const deals: Deal[] = dealFinder.getDeals();
     return deals;
   }
 
   async getGroups(): Promise<Group[]> {
-    const groups = await this.groupsCollection.find({});
-    return groups;
+    const groupData = await this.groupsCollection.find({});
+    return groupData.map((groupDatum) => new Group(this, groupDatum));
   }
 
   async getOrders(): Promise<Order[]> {
-    const orders = await this.ordersCollection.find({});
+    const orderData = await this.ordersCollection.find({});
+    const orders = orderData.map((orderDatum) => new Order(this, orderDatum));
     return orders;
   }
 
-  async getRegions(): Promise<Region[]> {
-    const regions = await this.regionsCollection.find({});
+  async getRegions(query: object = {}): Promise<Region[]> {
+    const regionData = await this.regionsCollection.find(query);
+    const regions = regionData.map((regionDatum) => new Region(this, regionDatum));
     return regions;
   }
 
   async getStations({ regionId, constellationId, systemId, stationId }: { regionId?: number, constellationId?: number, systemId?: number, stationId?: number }): Promise<Station[]> {
     if (stationId) {
-      const stations = await this.stationsCollection.find({ station_id: stationId });
+      const stationData = await this.stationsCollection.find({ station_id: stationId });
+      const stations = stationData.map((stationDatum) => new Station(this, stationDatum));
       return stations;
     }
     if (systemId) {
-      const stations = await this.stationsCollection.find({ system_id: systemId });
+      const stationData = await this.stationsCollection.find({ system_id: systemId });
+      const stations = stationData.map((stationDatum) => new Station(this, stationDatum));
       return stations;
     }
     if (constellationId) {
       const constellations = await this.constellationsCollection.find({ constellation_id: constellationId });
       const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
-      const stations = await this.stationsCollection.find({ system_id: { $in: systemIds } });
+      const stationData = await this.stationsCollection.find({ system_id: { $in: systemIds } });
+      const stations = stationData.map((stationDatum) => new Station(this, stationDatum));
       return stations;
     }
     if (regionId) {
       const constellations = await this.constellationsCollection.find({ region_id: regionId });
       const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
-      const stations = await this.stationsCollection.find({ system_id: { $in: systemIds } });
+      const stationData = await this.stationsCollection.find({ system_id: { $in: systemIds } });
+      const stations = stationData.map((stationDatum) => new Station(this, stationDatum));
       return stations;
     }
-    const stations = await this.stationsCollection.find({});
+    const stationData = await this.stationsCollection.find({});
+    const stations = stationData.map((stationDatum) => new Station(this, stationDatum));
     return stations;
   }
 
-  async getStructures({ regionId, constellationId, systemId, structureId }: { regionId?: number, constellationId?: number, systemId?: number, structureId?: number }) {
+  async getStructures({ regionId, constellationId, systemId, structureId }: { regionId?: number, constellationId?: number, systemId?: number, structureId?: number }): Promise<Structure[]> {
     if (structureId) {
-      const structures = await this.structuresCollection.find({ structure_id: structureId });
+      const structureData = await this.structuresCollection.find({ structure_id: structureId });
+      const structures = structureData.map((structureDatum) => new Structure(this, structureDatum));
       return structures;
     }
     if (systemId) {
-      const structures = await this.structuresCollection.find({ solar_system_id: systemId });
+      const structureData = await this.structuresCollection.find({ solar_system_id: systemId });
+      const structures = structureData.map((structureDatum) => new Structure(this, structureDatum));
       return structures;
     }
     if (constellationId) {
       const constellations = await this.constellationsCollection.find({ constellation_id: constellationId });
       const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
-      const structures = await this.structuresCollection.find({ solar_system_id: { $in: systemIds } });
+      const structureData = await this.structuresCollection.find({ solar_system_id: { $in: systemIds } });
+      const structures = structureData.map((structureDatum) => new Structure(this, structureDatum));
       return structures;
     }
     if (regionId) {
       const constellations = await this.constellationsCollection.find({ region_id: regionId });
       const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
-      const structures = await this.structuresCollection.find({ solar_system_id: { $in: systemIds } });
+      const structureData = await this.structuresCollection.find({ solar_system_id: { $in: systemIds } });
+      const structures = structureData.map((structureDatum) => new Structure(this, structureDatum));
       return structures;
     }
-    const structures = await this.structuresCollection.find({});
+    const structureData = await this.structuresCollection.find({});
+    const structures = structureData.map((structureDatum) => new Structure(this, structureDatum));
     return structures;
   }
 
@@ -114,17 +157,41 @@ export default class DataProxy {
     if (constellationId) {
       const constellations = await this.constellationsCollection.find({ constelation_id: constellationId });
       const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
-      const systems = await this.systemsCollection.find({ system_id: { $in: systemIds } });
+      const systemData = await this.systemsCollection.find({ system_id: { $in: systemIds } });
+      const systems = systemData.map((systemDatum) => new System(this, systemDatum));
       return systems;
     }
     if (regionId) {
       const constellations = await this.constellationsCollection.find({ region_id: regionId });
       const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
-      const systems = await this.systemsCollection.find({ system_id: { $in: systemIds } });
+      const systemData = await this.systemsCollection.find({ system_id: { $in: systemIds } });
+      const systems = systemData.map((systemDatum) => new System(this, systemDatum));
       return systems;
     }
-    const systems = await this.systemsCollection.find({});
+    const systemData = await this.systemsCollection.find({});
+    const systems = systemData.map((systemDatum) => new System(this, systemDatum));
     return systems;
+  }
+
+  async updateCharacters(characterId: number) {
+    await Promise.all([
+      this.esiService.update<Character>({
+        method: 'get',
+        url: `/characters/${characterId}`
+      }).subscribe({
+        next: (character) => {
+          return this.charactersCollection.updateOne({ character_id: characterId }, character);
+        }
+      }),
+      this.esiService.update<Skills>({
+        method: 'get',
+        url: `/characters/${characterId}/skills`
+      }).subscribe({
+        next: (skills) => {
+          return this.charactersCollection.updateOne({ character_id: characterId }, { skills });
+        }
+      }),
+    ]);
   }
 
   async updateConstellations() {

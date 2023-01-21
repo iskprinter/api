@@ -4,13 +4,13 @@ import crypto from 'crypto';
 import requester from 'src/tools/Requester';
 import { Collection } from "src/databases";
 import log from "src/tools/Logger";
-import { EsiRequest } from 'src/models';
+import { EsiRequest, EsiRequestData } from 'src/models';
 import { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { Subject } from 'src/tools';
 
 export default class EsiService {
 
-  constructor(public esiRequestCollection: Collection<EsiRequest>) { }
+  constructor(public esiRequestCollection: Collection<EsiRequestData>) { }
 
   /**
    * Usage:
@@ -116,7 +116,7 @@ export default class EsiService {
   }
 
   async _getRequest(requestId: string): Promise<EsiRequest> {
-    return this.esiRequestCollection.findOne({ requestId });
+    return new EsiRequest(await this.esiRequestCollection.findOne({ requestId }));
   }
 
   _requestDataHasExpired(request: EsiRequest) {
