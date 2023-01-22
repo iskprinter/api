@@ -12,7 +12,10 @@ class Constellation extends Model implements ConstellationData {
   }
 
   async getRegion(): Promise<Region> {
-    const region = (await this._dataProxy.getRegions({ region_id: this.region_id }))[0];
+    if (!this.region_id) {
+      throw new Error('Constellation was unable to get region because constellation data was incomplete.');
+    }
+    const region = await this._dataProxy.getRegion(this.region_id);
     return region;
   }
 }

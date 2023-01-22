@@ -20,5 +20,15 @@ export default function stationRoutes(stationTradingController: StationTradingCo
     stationTradingController.getStations(),
     stationTradingController.updateStations()
   );
+  router.get(
+    '/:stationId',
+    validator.validate({
+      params: Joi.object({
+        stationId: Joi.number().required(),
+      }),
+    }),
+    stationTradingController.getStation(),
+    stationTradingController.updateStations()
+  );
   return router;
 }

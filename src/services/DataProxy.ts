@@ -12,7 +12,8 @@ import {
   OrderData,
   Region,
   RegionData,
-  Skills,
+  CharacterSkills,
+  CharacterLocation,
   Station,
   StationData,
   Structure,
@@ -46,6 +47,19 @@ export default class DataProxy {
     return characters;
   }
 
+  async getCharacterLocation(characterId: number, authorization: string): Promise<CharacterLocation> {
+    return new Promise((resolve, reject) => {
+      this.esiService.update<CharacterLocation>({
+        method: 'get',
+        url: `/characters/${characterId}/location`,
+        headers: { authorization }
+      }).subscribe({
+        next: resolve,
+        error: reject,
+      })
+    });
+  }
+
   async getConstellations(query: object = {}): Promise<Constellation[]> {
     const constellationData = await this.constellationsCollection.find(query);
     const constellations = constellationData.map((constellationDatum) => new Constellation(this, constellationDatum));
@@ -63,10 +77,12 @@ export default class DataProxy {
       .filter((group) => group.market_group_id !== 150 && group.parent_group_id !== 150) // Skill books
       .reduce((typeIds: number[], group) => [...typeIds, ...(group.types || [])], []);
 
-    const orderData: OrderData[] = await this.ordersCollection.find({ $or: [
-      { region_id: regionId },
-      ...(structureId ? [{ structure_id: structureId }] : []),
-    ]});
+    const orderData: OrderData[] = await this.ordersCollection.find({
+      $or: [
+        { region_id: regionId },
+        ...(structureId ? [{ structure_id: structureId }] : []),
+      ]
+    });
     const orders = orderData.map((orderDatum) => new Order(this, orderDatum));
 
     const typeData: TypeData[] = await this.typesCollection.find({ type_id: { $in: typeIds } });
@@ -90,18 +106,31 @@ export default class DataProxy {
     return orders;
   }
 
-  async getRegions(query: object = {}): Promise<Region[]> {
-    const regionData = await this.regionsCollection.find(query);
+  async getRegion(regionId: number): Promise<Region> {
+    const regionDatum = (await this.regionsCollection.find({ region_id: regionId }))[0];
+    const region = new Region(this, regionDatum);
+    return region;
+  }
+
+  async getRegions({ systemId }: { systemId?: number } = {}): Promise<Region[]> {
+    if (systemId) {
+      const constellationData = await this.constellationsCollection.find({ systems: systemId });
+      const constellations = constellationData.map((constellationDatum) => new Constellation(this, constellationDatum));
+      const regions = await Promise.all(constellations.map((constellation) => constellation.getRegion()));
+      return regions;
+    }
+    const regionData = await this.regionsCollection.find({});
     const regions = regionData.map((regionDatum) => new Region(this, regionDatum));
     return regions;
   }
 
-  async getStations({ regionId, constellationId, systemId, stationId }: { regionId?: number, constellationId?: number, systemId?: number, stationId?: number }): Promise<Station[]> {
-    if (stationId) {
-      const stationData = await this.stationsCollection.find({ station_id: stationId });
-      const stations = stationData.map((stationDatum) => new Station(this, stationDatum));
-      return stations;
-    }
+  async getStation(stationId: number): Promise<Station> {
+    const stationDatum = (await this.stationsCollection.find({ station_id: stationId }))[0];
+    const station = new Station(this, stationDatum);
+    return station;
+  }
+
+  async getStations({ regionId, constellationId, systemId }: { regionId?: number, constellationId?: number, systemId?: number }): Promise<Station[]> {
     if (systemId) {
       const stationData = await this.stationsCollection.find({ system_id: systemId });
       const stations = stationData.map((stationDatum) => new Station(this, stationDatum));
@@ -126,12 +155,13 @@ export default class DataProxy {
     return stations;
   }
 
-  async getStructures({ regionId, constellationId, systemId, structureId }: { regionId?: number, constellationId?: number, systemId?: number, structureId?: number }): Promise<Structure[]> {
-    if (structureId) {
-      const structureData = await this.structuresCollection.find({ structure_id: structureId });
-      const structures = structureData.map((structureDatum) => new Structure(this, structureDatum));
-      return structures;
-    }
+  async getStructure(structureId: number): Promise<Structure> {
+    const structureDatum = (await this.structuresCollection.find({ structure_id: structureId }))[0];
+    const structure = new Structure(this, structureDatum)
+    return structure;
+  }
+
+  async getStructures({ regionId, constellationId, systemId }: { regionId?: number, constellationId?: number, systemId?: number }): Promise<Structure[]> {
     if (systemId) {
       const structureData = await this.structuresCollection.find({ solar_system_id: systemId });
       const structures = structureData.map((structureDatum) => new Structure(this, structureDatum));
@@ -156,7 +186,12 @@ export default class DataProxy {
     return structures;
   }
 
-  async getSystems({ regionId, constellationId }: { regionId?: number, constellationId?: number }): Promise<System[]> {
+  async getSystems({ regionId, constellationId, systemId }: { regionId?: number, constellationId?: number, systemId?: number }): Promise<System[]> {
+    if (systemId) {
+      const systemData = await this.systemsCollection.find({ system_id: systemId });
+      const systems = systemData.map((systemDatum) => new System(this, systemDatum));
+      return systems;
+    }
     if (constellationId) {
       const constellations = await this.constellationsCollection.find({ constelation_id: constellationId });
       const systemIds = constellations.reduce((systemIds: number[], constellation) => [...systemIds, ...(constellation.systems || [])], []);
@@ -176,26 +211,39 @@ export default class DataProxy {
     return systems;
   }
 
-  async updateCharacters(characterId: number, authorization: string) {
-    await Promise.all([
-      this.esiService.update<Character>({
-        method: 'get',
-        url: `/characters/${characterId}`
-      }).subscribe({
-        next: (character) => {
-          return this.charactersCollection.updateOne({ character_id: characterId }, character);
-        }
-      }),
-      this.esiService.update<Skills>({
-        method: 'get',
-        url: `/characters/${characterId}/skills`,
-        headers: { authorization }
-      }).subscribe({
-        next: (skills) => {
-          return this.charactersCollection.updateOne({ character_id: characterId }, { skills });
-        }
-      }),
-    ]);
+  async updateCharacter(characterId: number) {
+    return this.esiService.update<Character>({
+      method: 'get',
+      url: `/characters/${characterId}`
+    }).subscribe({
+      next: (character) => {
+        return this.charactersCollection.updateOne({ character_id: characterId }, character);
+      }
+    })
+  }
+
+  async updateCharacterLocation(characterId: number, authorization: string) {
+    return this.esiService.update<CharacterLocation>({
+      method: 'get',
+      url: `/characters/${characterId}/location`,
+      headers: { authorization }
+    }).subscribe({
+      next: (location) => {
+        return this.charactersCollection.updateOne({ character_id: characterId }, { location });
+      }
+    });
+  }
+
+  async updateCharacterSkills(characterId: number, authorization: string) {
+    return this.esiService.update<CharacterSkills>({
+      method: 'get',
+      url: `/characters/${characterId}/skills`,
+      headers: { authorization }
+    }).subscribe({
+      next: (skills) => {
+        return this.charactersCollection.updateOne({ character_id: characterId }, { skills });
+      }
+    });
   }
 
   async updateConstellations() {
@@ -212,7 +260,7 @@ export default class DataProxy {
       }
     });
     if (constellationIdsHaveChanged) {
-      await this.constellationsCollection.delete({ constellation_id: { $nin: newestConstellationIds  } });
+      await this.constellationsCollection.delete({ constellation_id: { $nin: newestConstellationIds } });
     }
 
     const constellations = await this.constellationsCollection.find({}, { projection: { constellation_id: 1 } });
@@ -242,7 +290,7 @@ export default class DataProxy {
       }
     });
     if (groupIdsHaveChanged) {
-      await this.groupsCollection.delete({ market_group_id: { $nin: newestGroupIds  } });
+      await this.groupsCollection.delete({ market_group_id: { $nin: newestGroupIds } });
     }
 
     const groups = await this.groupsCollection.find({}, { projection: { market_group_id: 1 } });
@@ -273,7 +321,7 @@ export default class DataProxy {
       }
     });
     if (ordersIdsHaveChanged) {
-      await this.ordersCollection.delete({ region_id: regionId, order_id: { $nin: newestOrderIds  } });
+      await this.ordersCollection.delete({ region_id: regionId, order_id: { $nin: newestOrderIds } });
     }
   }
 
@@ -291,7 +339,7 @@ export default class DataProxy {
       }
     });
     if (regionIdsHaveChanged) {
-      await this.regionsCollection.delete({ region_id: { $nin: newestRegionIds  } });
+      await this.regionsCollection.delete({ region_id: { $nin: newestRegionIds } });
     }
 
     const regions = await this.regionsCollection.find({}, { projection: { region_id: 1 } });
@@ -339,7 +387,7 @@ export default class DataProxy {
       }
     });
     if (ordersIdsHaveChanged) {
-      await this.ordersCollection.delete({ structure_id: structureId, order_id: { $nin: newestOrderIds  } });
+      await this.ordersCollection.delete({ structure_id: structureId, order_id: { $nin: newestOrderIds } });
     }
   }
 
@@ -357,7 +405,7 @@ export default class DataProxy {
       }
     });
     if (structureIdsHaveChanged) {
-      await this.structuresCollection.delete({ structure_id: { $nin: newestStructureIds  } });
+      await this.structuresCollection.delete({ structure_id: { $nin: newestStructureIds } });
     }
 
     const structures = await this.structuresCollection.find({}, { projection: { structure_id: 1 } });
@@ -397,7 +445,7 @@ export default class DataProxy {
       }
     });
     if (systemIdsHaveChanged) {
-      await this.systemsCollection.delete({ system_id: { $nin: newestSystemIds  } });
+      await this.systemsCollection.delete({ system_id: { $nin: newestSystemIds } });
     }
 
     const systems = await this.systemsCollection.find({}, { projection: { system_id: 1 } });
@@ -427,7 +475,7 @@ export default class DataProxy {
       }
     });
     if (typeIdsHaveChanged) {
-      await this.typesCollection.delete({ type_id: { $nin: newestTypeIds  } });
+      await this.typesCollection.delete({ type_id: { $nin: newestTypeIds } });
     }
 
     const types = await this.typesCollection.find({}, { projection: { type_id: 1 } });

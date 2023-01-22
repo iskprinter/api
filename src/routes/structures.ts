@@ -22,5 +22,16 @@ export default function structureRoutes(stationTradingController: StationTrading
     stationTradingController.getStructures(),
     stationTradingController.updateStructures(),
   );
+  router.get(
+    '/:structureId',
+    authService.validateAuth(),
+    validator.validate({
+      params: Joi.object({
+        'structureId': Joi.number().required(),
+      }),
+    }),
+    stationTradingController.getStructure(),
+    stationTradingController.updateStructures(),
+  );
   return router;
 }

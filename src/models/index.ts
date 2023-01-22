@@ -5,7 +5,7 @@ import {
 } from './TokenRequests';
 import AccessToken from './AccessToken';
 import Character from './Character';
-import CharacterData, { Skills } from './CharacterData';
+import CharacterData, { CharacterLocation, CharacterSkills } from './CharacterData';
 import Constellation from './Constellation';
 import ConstellationData from './ConstellationData';
 import Deal from './Deal';
@@ -33,6 +33,8 @@ export {
   AccessToken,
   Character,
   CharacterData,
+  CharacterLocation,
+  CharacterSkills,
   Constellation,
   ConstellationData,
   Deal,
@@ -45,7 +47,6 @@ export {
   PersistentEntity,
   Region,
   RegionData,
-  Skills,
   Station,
   StationData,
   Structure,
