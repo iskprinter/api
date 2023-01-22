@@ -9,13 +9,8 @@ export default class Token implements PersistentEntity {
   static DB_NAME = 'iskprinter';
   static COLLECTION_NAME = 'tokens';
 
-  accessToken: string;
-  refreshToken: string;
-
-  constructor(accessToken: string, refreshToken: string) {
-    this.accessToken = accessToken
-    this.refreshToken = refreshToken
-  }
+  public accessToken!: string;
+  public refreshToken!: string;
 
   static async withCollection(next: (collection: Collection<any>) => Promise<any>): Promise<any> {
     const dbUrl = env.get('DB_URL').required().asUrlString();

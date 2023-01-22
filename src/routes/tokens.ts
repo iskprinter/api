@@ -1,29 +1,24 @@
-import express, { NextFunction, Request, Response, Router } from 'express'
+import express, { Router } from 'express'
 
-import { RequestValidator } from 'src/tools/RequestValidator'
-import { AuthenticationController } from 'src/controllers'
-import log from 'src/tools/Logger';
+import { AuthController } from 'src/controllers'
+import { Validator } from 'src/services';
+import Joi from 'joi';
 
-export default function tokenRoutes(authenticationController: AuthenticationController): Router {
+export default function tokenRoutes(authController: AuthController): Router {
 
   const router = express.Router()
+  const validator = new Validator();
 
-  router.get('/', authenticationController.verifyToken());
+  router.get('/', authController.verifyToken());
 
   router.post('/',
-    async (req: Request, res: Response, next: NextFunction) => {
-      log.info('Validating request to POST /tokens...');
-      (new RequestValidator({
-        body: [
-          'proofType',
-          'proof'
-        ],
-        query: []
-      })).validate(req);
-      log.info('Successfully validated request to POST /tokens.');
-      next();
-    },
-    authenticationController.getToken()
+    validator.validate({
+      body: Joi.object({
+        proofType: Joi.string().required(),
+        proof: Joi.string().required(),
+      })
+    }),
+    authController.getToken()
   )
 
   return router;

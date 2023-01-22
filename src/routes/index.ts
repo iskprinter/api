@@ -1,34 +1,34 @@
 import express, { Router } from 'express';
 
-import { Database } from 'src/databases';
 import {
-  AuthenticationController,
+  AuthController,
   HealthcheckController,
   StationTradingController,
 } from 'src/controllers';
+import constellationRoutes from 'src/routes/constellations';
+import dealRoutes from 'src/routes/deals';
+import orderRoutes from 'src/routes/orders';
+import regionRoutes from 'src/routes/regions';
+import stationRoutes from 'src/routes/stations';
+import structureRoutes from 'src/routes/structures';
+import systemRoutes from 'src/routes/systems';
 import tokenRoutes from 'src/routes/tokens';
-import typeRoutes from 'src/routes/types';
-import {
-  Token,
-  Type
-} from 'src/models';
-import { TokenService } from 'src/services';
 
-export default function indexRoutes(database: Database): Router {
+export default function indexRoutes(
+  authController: AuthController,
+  healthcheckController: HealthcheckController,
+  stationTradingController: StationTradingController,
+): Router {
 
   const router = express.Router();
-
-  const typesCollection = database.getCollection<Type>('types');
-  const tokensCollection = database.getCollection<Token>('tokens');
-
-  const tokenService = new TokenService();
-
-  const authenticationController = new AuthenticationController(tokensCollection, tokenService);
-  const healthcheckController = new HealthcheckController();
-  const stationTradingController = new StationTradingController(typesCollection);
-
-  router.use('/tokens', tokenRoutes(authenticationController));
-  router.use('/types', typeRoutes(stationTradingController));
+  router.use('/constellations', constellationRoutes(stationTradingController));
+  router.use('/deals', dealRoutes(stationTradingController));
+  router.use('/orders', orderRoutes(stationTradingController));
+  router.use('/regions', regionRoutes(stationTradingController));
+  router.use('/stations', stationRoutes(stationTradingController));
+  router.use('/structures', structureRoutes(stationTradingController));
+  router.use('/systems', systemRoutes(stationTradingController));
+  router.use('/tokens', tokenRoutes(authController));
 
   router.get('/', healthcheckController.announceHealth());
 

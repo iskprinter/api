@@ -1,9 +1,9 @@
-import AuthenticationController from './AuthenticationController';
+import AuthController from './AuthController';
 import HealthcheckController from './HealthcheckController';
 import StationTradingController from './StationTradingController';
 
 export {
-  AuthenticationController,
+  AuthController,
   HealthcheckController,
   StationTradingController
 };

@@ -7,28 +7,24 @@ import {
   TokenPostRequest,
   TokenVerificationResponse
 } from 'src/models'
-import { TokenService } from 'src/services';
+import { AuthService } from 'src/services';
 import log from 'src/tools/Logger';
 
-class AuthenticationController {
-
+class AuthController {
   static LOGIN_SERVER_DOMAIN_NAME = 'login.eveonline.com'
-  tokensCollection: Collection<Token>;
-  tokenService: TokenService;
-
-  constructor(tokensCollection: Collection<Token>, tokenService: TokenService) {
-    this.tokensCollection = tokensCollection;
-    this.tokenService = tokenService;
-  }
+  constructor(
+    public tokensCollection: Collection<Token>,
+    public authService: AuthService
+  ) { }
 
   getToken(): RequestHandler {
     return async (req: Request, res: Response) => {
-      const tokenRequest: TokenPostRequest = req.body
+      const tokenRequest: TokenPostRequest = req.body;
       log.info(`Creating token for tokenRequest ${JSON.stringify(tokenRequest)}...`);
       let token: Token;
       switch (tokenRequest.proofType) {
         case 'authorizationCode': {
-          token = await this.tokenService.createTokenFromAuthorizationCode(tokenRequest.proof)
+          token = await this.authService.createTokenFromAuthorizationCode(tokenRequest.proof)
           break;
         }
         case 'priorAccessToken': {
@@ -37,7 +33,7 @@ class AuthenticationController {
           if (!priorToken) {
             throw new ResourceNotFoundError(`Did not find a matching entry for access token ${priorAccessToken}.`)
           }
-          token = await this.tokenService.createTokenFromPriorAccessToken(priorToken)
+          token = await this.authService.createTokenFromPriorAccessToken(priorToken)
           // Clean up the old token
           await this.tokensCollection.deleteOne({ accessToken: priorAccessToken });
           break;
@@ -71,4 +67,4 @@ class AuthenticationController {
 
 }
 
-export default AuthenticationController;
+export default AuthController;
