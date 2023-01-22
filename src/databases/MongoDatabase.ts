@@ -19,10 +19,10 @@ export default class MongoDatabase implements Database {
     return this;
   }
 
-  getCollection<T extends object>(TConstructor: new() => T , collectionName: string): Collection<T> {
+  getCollection<T extends object>(collectionName: string): Collection<T> {
     if (this.db === undefined) {
       throw new Error('The database has not yet been connected.');
     }
-    return new MongoCollection(TConstructor, this.db.collection(collectionName));
+    return new MongoCollection<T>(this.db.collection(collectionName));
   }
 }

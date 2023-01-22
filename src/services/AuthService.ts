@@ -40,7 +40,7 @@ export default class AuthService {
         access_token: accessToken,
         refresh_token: refreshToken
       } = eveResponse.data;
-      const token = Object.assign(new Token(), { accessToken, refreshToken });
+      const token = new Token({ accessToken, refreshToken });
       log.info(`Generated new access/refresh token pair ${JSON.stringify(token)}.`);
       await token.save();
       return token;
@@ -90,11 +90,12 @@ export default class AuthService {
     } = eveResponse.data;
 
     // Save the new accessToken:refreshToken pair.
-    const token = Object.assign(new Token(), { accessToken, refreshToken });
+    const token = new Token({ accessToken, refreshToken });
     return token.save()
   }
 
-  getCharacterIdFromToken(token: string): number {
+  getCharacterIdFromAuthorization(auth: string): number {
+    const token = auth.match(/^Bearer (.*)$/)?.[1] as string;
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
     const jsonPayload = JSON.parse(Buffer.from(base64, 'base64').toString());

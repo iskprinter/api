@@ -5,6 +5,7 @@ export default class Validator {
   validate(schema: {
     body?: Joi.ObjectSchema,
     headers?: Joi.ObjectSchema,
+    params?: Joi.ObjectSchema,
     query?: Joi.ObjectSchema,
   }): RequestHandler {
     return (req: Request, res: Response, next: NextFunction) => {

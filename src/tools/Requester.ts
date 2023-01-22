@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { Agent } from 'https'
 import log from 'src/tools/Logger';
 
@@ -22,11 +22,27 @@ axiosAgent.interceptors.request.use((req) => {
 
 axiosAgent.interceptors.response.use((res) => {
   log.info({
+    baseURL: res.config.baseURL,
+    data: res.data,
+    headers: res.headers,
     status: res.status,
     statusText: res.statusText,
-    headers: res.headers,
-    data: res.data,
+    url: res.config.url,
   });
   return res;
+}, (err) => {
+  if (err instanceof AxiosError) {
+    log.warn({
+      baseURL: err.response?.config.baseURL,
+      data: err.response?.data,
+      headers: err.response?.headers,
+      status: err.response?.status,
+      statusText: err.response?.statusText,
+      url: err.response?.config.url,
+    });
+  } else {
+    log.warn(err);
+  }
+  throw err;
 })
 export default axiosAgent;

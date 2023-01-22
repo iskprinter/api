@@ -4,13 +4,13 @@ import crypto from 'crypto';
 import requester from 'src/tools/Requester';
 import { Collection } from "src/databases";
 import log from "src/tools/Logger";
-import { EsiRequest } from 'src/models';
+import { EsiRequest, EsiRequestData } from 'src/models';
 import { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { Subject } from 'src/tools';
 
 export default class EsiService {
 
-  constructor(public esiRequestCollection: Collection<EsiRequest>) { }
+  constructor(public esiRequestCollection: Collection<EsiRequestData>) { }
 
   /**
    * Usage:
@@ -40,7 +40,6 @@ export default class EsiService {
         return this._getAllPages<T>(requestId, config, priorRequest).subscribe({
           next: (data) => subscriber.next(data),
           error: async (err) => {
-            log.info('inside update() error handler');
             if (err instanceof AxiosError) {
               switch (err.response?.status) {
                 case 304:
@@ -95,7 +94,6 @@ export default class EsiService {
 
         return subscriber.complete?.();
       } catch (err) {
-        log.info('inside _getAllPages() error handler');
         await subscriber.error?.(err);
       }
 
@@ -117,8 +115,9 @@ export default class EsiService {
     });
   }
 
-  async _getRequest(requestId: string): Promise<EsiRequest> {
-    return this.esiRequestCollection.findOne({ requestId });
+  async _getRequest(requestId: string): Promise<EsiRequestData> {
+    const esiRequestData = await this.esiRequestCollection.findOne({ requestId });
+    return esiRequestData;
   }
 
   _requestDataHasExpired(request: EsiRequest) {

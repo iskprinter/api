@@ -4,23 +4,22 @@ import { BadRequestError, ResourceNotFoundError } from 'src/errors';
 import {
   AccessToken,
   Token,
+  TokenData,
   TokenPostRequest,
   TokenVerificationResponse
 } from 'src/models'
 import { AuthService } from 'src/services';
-import log from 'src/tools/Logger';
 
 class AuthController {
   static LOGIN_SERVER_DOMAIN_NAME = 'login.eveonline.com'
   constructor(
-    public tokensCollection: Collection<Token>,
+    public tokensCollection: Collection<TokenData>,
     public authService: AuthService
   ) { }
 
   getToken(): RequestHandler {
     return async (req: Request, res: Response) => {
       const tokenRequest: TokenPostRequest = req.body;
-      log.info(`Creating token for tokenRequest ${JSON.stringify(tokenRequest)}...`);
       let token: Token;
       switch (tokenRequest.proofType) {
         case 'authorizationCode': {
@@ -29,10 +28,11 @@ class AuthController {
         }
         case 'priorAccessToken': {
           const priorAccessToken = tokenRequest.proof;
-          const priorToken = await this.tokensCollection.findOne({ accessToken: priorAccessToken });
-          if (!priorToken) {
+          const priorTokenData = await this.tokensCollection.findOne({ accessToken: priorAccessToken });
+          if (!priorTokenData) {
             throw new ResourceNotFoundError(`Did not find a matching entry for access token ${priorAccessToken}.`)
           }
+          const priorToken = new Token(priorTokenData);
           token = await this.authService.createTokenFromPriorAccessToken(priorToken)
           // Clean up the old token
           await this.tokensCollection.deleteOne({ accessToken: priorAccessToken });
@@ -42,7 +42,6 @@ class AuthController {
           throw new BadRequestError("Expected 'grantType' to be either 'authorizationCode' or 'priorAccessToken'.")
       }
 
-      log.info(`Successfully created token for tokenRequest ${JSON.stringify(tokenRequest)}.`);
       return res.json(token.accessToken)
     }
   }
