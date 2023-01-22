@@ -164,6 +164,13 @@ class StationTradingController {
     }
   }
 
+  updateConstellations(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      await this.dataProxy.updateConstellations();
+      return next();
+    }
+  }
+
   updateDeals(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
       const stationId = Number(req.query['station-id']);

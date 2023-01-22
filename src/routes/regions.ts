@@ -16,6 +16,7 @@ export default function regionRoutes(stationTradingController: StationTradingCon
     }),
     stationTradingController.getRegions(),
     stationTradingController.updateRegions(),
+    stationTradingController.updateConstellations(),
   );
   return router;
 }

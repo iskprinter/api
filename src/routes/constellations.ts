@@ -7,7 +7,7 @@ export default function constellationRoutes(stationTradingController: StationTra
   router.get(
     '/',
     stationTradingController.getConstellations(),
-    stationTradingController.updateDeals(),
+    stationTradingController.updateConstellations(),
   );
   return router;
 }
