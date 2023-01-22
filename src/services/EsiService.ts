@@ -115,8 +115,9 @@ export default class EsiService {
     });
   }
 
-  async _getRequest(requestId: string): Promise<EsiRequest> {
-    return new EsiRequest(await this.esiRequestCollection.findOne({ requestId }));
+  async _getRequest(requestId: string): Promise<EsiRequestData> {
+    const esiRequestData = await this.esiRequestCollection.findOne({ requestId });
+    return esiRequestData;
   }
 
   _requestDataHasExpired(request: EsiRequest) {

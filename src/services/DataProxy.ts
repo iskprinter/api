@@ -52,7 +52,7 @@ export default class DataProxy {
     return constellations;
   }
 
-  async getDeals(character: Character, regionId: number): Promise<Deal[]> {
+  async getDeals(character: Character, regionId: number, { structureId }: { structureId?: number } = {}): Promise<Deal[]> {
 
     // Get the character's open market orders
     // this.ordersCollection.find({ characterId });
@@ -63,14 +63,17 @@ export default class DataProxy {
       .filter((group) => group.market_group_id !== 150 && group.parent_group_id !== 150) // Skill books
       .reduce((typeIds: number[], group) => [...typeIds, ...(group.types || [])], []);
 
-    const orderData: OrderData[] = await this.ordersCollection.find({ region_id: regionId });
+    const orderData: OrderData[] = await this.ordersCollection.find({ $or: [
+      { region_id: regionId },
+      ...(structureId ? [{ structure_id: structureId }] : []),
+    ]});
     const orders = orderData.map((orderDatum) => new Order(this, orderDatum));
 
     const typeData: TypeData[] = await this.typesCollection.find({ type_id: { $in: typeIds } });
     const types = typeData.map((typeDatum) => new Type(this, typeDatum));
 
     // Compute deals
-    const strategy = new InventoryTimesMarginStrategy(character, types, orders);
+    const strategy = new InventoryTimesMarginStrategy(character, this, types, orders);
     const dealFinder = new DealFinder(strategy);
     const deals: Deal[] = dealFinder.getDeals();
     return deals;
@@ -173,7 +176,7 @@ export default class DataProxy {
     return systems;
   }
 
-  async updateCharacters(characterId: number) {
+  async updateCharacters(characterId: number, authorization: string) {
     await Promise.all([
       this.esiService.update<Character>({
         method: 'get',
@@ -185,7 +188,8 @@ export default class DataProxy {
       }),
       this.esiService.update<Skills>({
         method: 'get',
-        url: `/characters/${characterId}/skills`
+        url: `/characters/${characterId}/skills`,
+        headers: { authorization }
       }).subscribe({
         next: (skills) => {
           return this.charactersCollection.updateOne({ character_id: characterId }, { skills });
@@ -255,7 +259,7 @@ export default class DataProxy {
   }
 
   async updateMarketOrders(regionId: number, orderType: string) {
-    let orderIdsHaveChanged = false;
+    let ordersIdsHaveChanged = false;
     let newestOrderIds: number[] = [];
     await this.esiService.update<Order[]>({
       method: 'get',
@@ -263,12 +267,12 @@ export default class DataProxy {
       params: { order_type: orderType }
     }).subscribe({
       next: (orders) => {
-        orderIdsHaveChanged = true;
+        ordersIdsHaveChanged = true;
         newestOrderIds = newestOrderIds.concat(orders.map((order) => order.order_id));
         return this.ordersCollection.putMany(orders.map((order) => ({ ...order, region_id: regionId })));
       }
     });
-    if (orderIdsHaveChanged) {
+    if (ordersIdsHaveChanged) {
       await this.ordersCollection.delete({ region_id: regionId, order_id: { $nin: newestOrderIds  } });
     }
   }
@@ -318,6 +322,25 @@ export default class DataProxy {
         }
       });
     }));
+  }
+
+  async updateStructureOrders(structureId: number, authorization: string) {
+    let ordersIdsHaveChanged = false;
+    let newestOrderIds: number[] = [];
+    await this.esiService.update<Order[]>({
+      method: 'get',
+      url: `/markets/structures/${structureId}`,
+      headers: { authorization }
+    }).subscribe({
+      next: (orders) => {
+        ordersIdsHaveChanged = true;
+        newestOrderIds = newestOrderIds.concat(orders.map((order) => order.order_id));
+        return this.ordersCollection.putMany(orders.map((order) => ({ ...order, structure_id: structureId })));
+      }
+    });
+    if (ordersIdsHaveChanged) {
+      await this.ordersCollection.delete({ structure_id: structureId, order_id: { $nin: newestOrderIds  } });
+    }
   }
 
   async updateStructures(authorization: string) {

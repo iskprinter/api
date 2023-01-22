@@ -13,8 +13,9 @@ export default function orderRoutes(stationTradingController: StationTradingCont
     authService.validateAuth(),
     validator.validate({
       query: Joi.object({
-        'region-id': Joi.number().required(),
         'order-type': Joi.allow('all', 'buy', 'sell').required(),
+        'region-id': Joi.number().required(),
+        'structure-id': Joi.number(),
       })
     }),
     stationTradingController.getOrders(),

@@ -1,6 +1,6 @@
 import { AssertionError } from 'assert';
 import { NextFunction, Request, RequestHandler, Response } from 'express'
-import { Station } from 'src/models';
+import log from 'src/tools/Logger';
 
 import { AuthService, DataProxy } from 'src/services';
 
@@ -52,7 +52,7 @@ class StationTradingController {
       } else {
         throw new AssertionError({ message: 'Our validator has failed us.' });
       }
-      const deals = await this.dataProxy.getDeals(character, regionId);
+      const deals = await this.dataProxy.getDeals(character, regionId, { structureId });
       res.json({ deals });
       return next();
     };
@@ -121,7 +121,7 @@ class StationTradingController {
     return async (req: Request, res: Response, next: NextFunction) => {
       const authorization = String(req.headers.authorization);
       const characterId = this.authService.getCharacterIdFromAuthorization(authorization);
-      await this.dataProxy.updateCharacters(characterId);
+      await this.dataProxy.updateCharacters(characterId, authorization);
       return next();
     }
   }
@@ -146,7 +146,8 @@ class StationTradingController {
       await Promise.all([
         this.dataProxy.updateTypes(),
         this.dataProxy.updateMarketOrders(regionId, orderType),
-        this.dataProxy.updateCharacters(characterId)
+        this.dataProxy.updateCharacters(characterId, authorization),
+        ...(structureId ? [this.dataProxy.updateStructureOrders(structureId, authorization)] : []),
       ]);
       return next();
     }
@@ -163,7 +164,12 @@ class StationTradingController {
     return async (req: Request, res: Response, next: NextFunction) => {
       const regionId = Number(req.query['region-id']);
       const orderType = String(req.query['order-type']);
-      await this.dataProxy.updateMarketOrders(regionId, orderType);
+      const structureId = Number(req.query['structure-id']);
+      const authorization = String(req.headers.authorization); 
+      await Promise.all([
+        this.dataProxy.updateMarketOrders(regionId, orderType),
+        ...(structureId ? [this.dataProxy.updateStructureOrders(structureId, authorization)] : []),
+      ]);
       return next();
     }
   }
