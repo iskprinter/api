@@ -189,6 +189,7 @@ class StationTradingController {
       const authorization = String(req.headers.authorization);
       const characterId = this.authService.getCharacterIdFromAuthorization(authorization);
       await Promise.all([
+        this.dataProxy.updateMarketGroups(),
         this.dataProxy.updateTypes(),
         this.dataProxy.updateMarketOrders(regionId, orderType),
         this.dataProxy.updateCharacter(characterId),
