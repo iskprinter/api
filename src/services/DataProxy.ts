@@ -281,7 +281,7 @@ export default class DataProxy {
     let newestGroupIds: number[] = [];
     await this.esiService.update<number[]>({
       method: 'get',
-      url: '/market/groups'
+      url: '/markets/groups'
     }).subscribe({
       next: (groupIds) => {
         groupIdsHaveChanged = true;
@@ -297,7 +297,7 @@ export default class DataProxy {
     return Promise.all(groups.map((group) => {
       return this.esiService.update<Group>({
         method: 'get',
-        url: `/market/groups/${group.market_group_id}`
+        url: `/markets/groups/${group.market_group_id}`
       }).subscribe({
         next: (g) => {
           return this.groupsCollection.updateOne({ market_group_id: group.market_group_id }, g);
