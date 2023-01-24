@@ -83,13 +83,11 @@ export default class DataProxy {
         ...(structureId ? [{ structure_id: structureId }] : []),
       ]
     });
-    const orders = orderData.map((orderDatum) => new Order(this, orderDatum));
 
     const typeData: TypeData[] = await this.typesCollection.find({ type_id: { $in: typeIds } });
-    const types = typeData.map((typeDatum) => new Type(this, typeDatum));
 
     // Compute deals
-    const strategy = new InventoryTimesMarginStrategy(character, this, types, orders);
+    const strategy = new InventoryTimesMarginStrategy(character, this, typeData, orderData);
     const dealFinder = new DealFinder(strategy);
     const deals: Deal[] = dealFinder.getDeals();
     return deals;

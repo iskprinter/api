@@ -1,14 +1,15 @@
-import { Character, Deal, Order, Type } from "src/models";
+import { Character, Deal, OrderData, TypeData } from "src/models";
 import DealFinderStrategy from "./DealFinderStrategy";
 import log from "src/tools/Logger";
 import DataProxy from "../DataProxy";
+import DealData from "src/models/DealData";
 
 export default class InventoryTimesMarginStrategy implements DealFinderStrategy {
   constructor(
     public character: Character,
     public dataProxy: DataProxy,
-    public types: Type[],
-    public orders: Order[]
+    public types: TypeData[],
+    public orders: OrderData[]
   ) { }
 
   getDeals(): Deal[] {
@@ -17,28 +18,41 @@ export default class InventoryTimesMarginStrategy implements DealFinderStrategy 
     const typeNames = this.types
       .filter((type) => !type.name?.match(/Blueprint/))
       .reduce((typeNames: { [key: number]: string }, type) => ({ ...typeNames, [type.type_id]: String(type.name) }), {});
-    return Object.entries(typeNames)
-      .map<Deal>(([typeId, typeName]) => this.orders
-        .filter((order) => order.type_id === Number(typeId))
-        .reduce((deal: Deal, order) => {
-          const buyPrice = order.is_buy_order === true ? Math.max(deal.buyPrice, Number(order.price)) : deal.buyPrice;
-          const sellPrice = order.is_buy_order === false ? Math.min(deal.sellPrice, Number(order.price)) : deal.sellPrice;
-          return new Deal(this.dataProxy, {
-            typeName: deal.typeName,
-            buyPrice,
-            sellPrice,
-            feesPerUnit: this._computeFees(sellPrice),
-            volume: order.is_buy_order === false ? (deal.volume + 0.05 * order.volume_remain) : deal.volume,
-          })
-        }, new Deal(this.dataProxy, {
-          typeName: typeName,
-          buyPrice: 0,
-          sellPrice: Infinity,
-          feesPerUnit: 0,
-          volume: 0,
-        }))
-      ).filter((deal) => deal.sellPrice !== Infinity)
+
+    const dealDataByTypeId: { [key: number]: DealData } = {};
+    for (const order of this.orders) {
+      if (!typeNames[order.type_id]) {
+        continue;
+      }
+      const existingDeal = dealDataByTypeId[order.type_id];
+      const buyPrice = order.is_buy_order === true ? order.price : 0;
+      const sellPrice = order.is_buy_order === false ? order.price : Infinity;
+      const volume = order.is_buy_order === false ? order.volume_remain * 0.05 : 0;
+      if (!existingDeal) {
+        dealDataByTypeId[order.type_id] = {
+          buyPrice,
+          feesPerUnit: order.is_buy_order === false ? this._computeFees(sellPrice) : Infinity,
+          sellPrice,
+          typeName: typeNames[order.type_id],
+          volume: order.volume_remain * 0.05,
+        };
+      } else {
+        const minSellPrice = Math.min(existingDeal.sellPrice, sellPrice);
+        const maxBuyPrice = Math.max(existingDeal.buyPrice, buyPrice);
+        dealDataByTypeId[order.type_id] = {
+          buyPrice: maxBuyPrice,
+          feesPerUnit: this._computeFees(minSellPrice),
+          sellPrice: minSellPrice,
+          typeName: existingDeal.typeName,
+          volume: existingDeal.volume + volume,
+        };
+      }
+    }
+    const deals = Object.values(dealDataByTypeId)
+      .filter((dealData) => dealData.sellPrice !== Infinity)
+      .map((dealData) => new Deal(this.dataProxy, dealData))
       .sort((d1, d2) => d2.profit - d1.profit);
+    return deals;
   }
 
   _computeFees(sellPrice: number): number {
