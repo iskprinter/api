@@ -1,7 +1,7 @@
 import { NextFunction, Request, RequestHandler, Response } from 'express'
 import Joi from 'joi';
 
-export default class Validator {
+export default class ValidationController {
   validate(schema: {
     body?: Joi.ObjectSchema,
     headers?: Joi.ObjectSchema,

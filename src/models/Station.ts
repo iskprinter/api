@@ -1,11 +1,11 @@
 import { DataProxy } from "src/services";
-import Model from "./Model";
+import EveModel from "./EveModel";
 import Region from "./Region";
 import StationData from "./StationData";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface Station extends StationData { }
-class Station extends Model implements StationData {
+class Station extends EveModel implements StationData {
   constructor(dataProxy: DataProxy, stationData: StationData) {
     super(dataProxy);
     Object.assign(this, stationData);

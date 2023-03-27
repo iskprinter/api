@@ -1,11 +1,11 @@
 import { DataProxy } from "src/services";
 import ConstellationData from "./ConstellationData";
-import Model from "./Model";
+import EveModel from "./EveModel";
 import Region from "./Region";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface Constellation extends ConstellationData { }
-class Constellation extends Model implements ConstellationData {
+class Constellation extends EveModel implements ConstellationData {
   constructor(dataProxy: DataProxy, constellationData: ConstellationData) {
     super(dataProxy);
     Object.assign(this, constellationData);

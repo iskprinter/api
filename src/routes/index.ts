@@ -1,38 +1,39 @@
-import express, { Router } from 'express';
+import { Application } from 'express';
 
 import {
   AuthController,
   HealthcheckController,
+  ProfileController,
   StationTradingController,
 } from 'src/controllers';
-import characterRoutes from 'src/routes/characters';
-import constellationRoutes from 'src/routes/constellations';
-import dealRoutes from 'src/routes/deals';
-import orderRoutes from 'src/routes/orders';
-import regionRoutes from 'src/routes/regions';
-import stationRoutes from 'src/routes/stations';
-import structureRoutes from 'src/routes/structures';
-import systemRoutes from 'src/routes/systems';
-import tokenRoutes from 'src/routes/tokens';
+import ValidationController from 'src/controllers/ValidationController';
+import loadCharacterRoutes from 'src/routes/characters';
+import loadConstellationRoutes from 'src/routes/constellations';
+import loadDealRoutes from 'src/routes/deals';
+import loadOrderRoutes from 'src/routes/orders';
+import loadRegionRoutes from 'src/routes/regions';
+import loadStationRoutes from 'src/routes/stations';
+import loadStructureRoutes from 'src/routes/structures';
+import loadSystemRoutes from 'src/routes/systems';
+import loadTokenRoutes from 'src/routes/tokens';
 
-export default function indexRoutes(
+export default function (
+  app: Application,
   authController: AuthController,
   healthcheckController: HealthcheckController,
+  profileController: ProfileController,
+  validationController: ValidationController,
   stationTradingController: StationTradingController,
-): Router {
+) {
+  app.get('/', healthcheckController.announceHealth());
 
-  const router = express.Router();
-  router.use('/characters', characterRoutes(stationTradingController));
-  router.use('/constellations', constellationRoutes(stationTradingController));
-  router.use('/deals', dealRoutes(stationTradingController));
-  router.use('/orders', orderRoutes(stationTradingController));
-  router.use('/regions', regionRoutes(stationTradingController));
-  router.use('/stations', stationRoutes(stationTradingController));
-  router.use('/structures', structureRoutes(stationTradingController));
-  router.use('/systems', systemRoutes(stationTradingController));
-  router.use('/tokens', tokenRoutes(authController));
-
-  router.get('/', healthcheckController.announceHealth());
-
-  return router;
+  loadCharacterRoutes(app, authController, profileController, stationTradingController);
+  loadConstellationRoutes(app, stationTradingController);
+  loadDealRoutes(app, authController, stationTradingController, validationController);
+  loadOrderRoutes(app, authController, stationTradingController, validationController);
+  loadRegionRoutes(app, stationTradingController, validationController);
+  loadStationRoutes(app, stationTradingController, validationController);
+  loadStructureRoutes(app, authController, stationTradingController, validationController);
+  loadSystemRoutes(app, stationTradingController, validationController);
+  loadTokenRoutes(app, authController);
 }

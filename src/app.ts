@@ -5,7 +5,7 @@ import expressPinoLogger from 'express-pino-logger';
 
 import startServer from 'src/bin/startServer';
 import { MongoDatabase } from 'src/databases';
-import indexRoutes from 'src/routes/index';
+import loadIndexRoutes from 'src/routes/index';
 import { HttpError } from 'src/errors';
 import log from 'src/tools/Logger';
 import {
@@ -21,8 +21,9 @@ import {
   TypeData
 } from 'src/models';
 import { AuthService, DataProxy as DataProxy, EsiService } from 'src/services';
-import { AuthController, HealthcheckController, StationTradingController } from './controllers';
+import { AuthController, HealthcheckController, ProfileController, StationTradingController } from './controllers';
 import StructureData from './models/StructureData';
+import ValidationController from './controllers/ValidationController';
 
 async function main(): Promise<void> {
 
@@ -70,7 +71,7 @@ async function main(): Promise<void> {
   ])
 
   // Load Services
-  const authService = new AuthService();
+  const authService = new AuthService(tokensCollection);
   const esiService = new EsiService(esiRequestCollection);
   const dataProxy = new DataProxy(
     esiService,
@@ -83,11 +84,13 @@ async function main(): Promise<void> {
     structuresCollection,
     systemsCollection,
     typesCollection,
-  )
+  );
 
   // Load Controllers
-  const authController = new AuthController(tokensCollection, authService);
+  const authController = new AuthController(authService, tokensCollection);
   const healthcheckController = new HealthcheckController();
+  const profileController = new ProfileController(authService, esiService);
+  const validationController = new ValidationController();
   const stationTradingController = new StationTradingController(
     authService,
     dataProxy
@@ -99,11 +102,14 @@ async function main(): Promise<void> {
   });
 
   // Load the application routes
-  app.use('/', indexRoutes(
+  loadIndexRoutes(
+    app,
     authController,
     healthcheckController,
+    profileController,
+    validationController,
     stationTradingController,
-  ));
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.use((err: any, req: Request, res: Response, next: NextFunction): void => {

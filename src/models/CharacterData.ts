@@ -1,4 +1,4 @@
-import ModelData from "./ModelData";
+import EveModelData from "./EveModelData";
 
 export interface CharacterLocation {
   solar_system_id: number;
@@ -15,7 +15,7 @@ export interface CharacterSkills {
   }[],
 }
 
-export default interface CharacterData extends ModelData {
+export default interface CharacterData extends EveModelData {
   character_id: number;
   location?: CharacterLocation;
   skills?: CharacterSkills;

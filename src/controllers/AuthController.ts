@@ -1,69 +1,59 @@
-import { Request, RequestHandler, Response } from 'express';
+import { NextFunction, Request, RequestHandler, Response } from 'express';
 import { Collection } from 'src/databases';
-import { BadRequestError, ResourceNotFoundError } from 'src/errors';
-import {
-  AccessToken,
-  Token,
-  TokenData,
-  TokenPostRequest,
-  TokenVerificationResponse
-} from 'src/models'
+import { BadRequestError } from 'src/errors';
+import ForbiddenError from 'src/errors/ForbiddenError';
+import { Token } from 'src/models'
 import { AuthService } from 'src/services';
 
 class AuthController {
   static LOGIN_SERVER_DOMAIN_NAME = 'login.eveonline.com'
   constructor(
-    public tokensCollection: Collection<TokenData>,
-    public authService: AuthService
+    public authService: AuthService,
+    public tokensCollection: Collection<Token>,
   ) { }
 
   getToken(): RequestHandler {
     return async (req: Request, res: Response) => {
-      const tokenRequest: TokenPostRequest = req.body;
-      let token: Token;
-      switch (tokenRequest.proofType) {
-        case 'authorizationCode': {
-          token = await this.authService.createTokenFromAuthorizationCode(tokenRequest.proof)
-          break;
-        }
-        case 'priorAccessToken': {
-          const priorAccessToken = tokenRequest.proof;
-          const priorTokenData = await this.tokensCollection.findOne({ accessToken: priorAccessToken });
-          if (!priorTokenData) {
-            throw new ResourceNotFoundError(`Did not find a matching entry for access token ${priorAccessToken}.`)
+      const { proof, proofType } = req.body;
+      const token = await (async () => {
+        switch (proofType) {
+          case 'authorizationCode': {
+            const authorizationCode = proof;
+            const token = await this.authService.createTokenFromAuthorizationCode(authorizationCode);
+            return token;
           }
-          const priorToken = new Token(priorTokenData);
-          token = await this.authService.createTokenFromPriorAccessToken(priorToken)
-          // Clean up the old token
-          await this.tokensCollection.deleteOne({ accessToken: priorAccessToken });
-          break;
+          case 'refreshToken': {
+            const refreshToken = proof;
+            const token = await this.authService.refreshIskprinterTokens(refreshToken);
+            return token;
+          }
+          default:
+            throw new BadRequestError("Expected 'grantType' to be either 'authorizationCode' or 'priorAccessToken'.");
         }
-        default:
-          throw new BadRequestError("Expected 'grantType' to be either 'authorizationCode' or 'priorAccessToken'.")
-      }
-
-      return res.json(token.accessToken)
+      })()
+      return res.json({
+        accessToken: token.iskprinterAccessToken,
+        refreshToken: token.iskprinterRefreshToken
+      })
     }
   }
 
-  verifyToken(): RequestHandler {
-    return async (req: Request, res: Response) => {
-      const authHeader = String(req.headers.authorization || req.headers.Authorization)
-      if (authHeader === null) {
-        throw new BadRequestError('Header \'authorization\' or \'Authorization\' is required.')
+  validateAuth(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const authHeader = req.headers.authorization;
+      const jwtPayload = await (async () => {
+        try {
+          return await this.authService.validateAuth(authHeader);
+        } catch (err) {
+          next(err);
+        }
+      })();
+      if (req.params.characterId && jwtPayload.characterId != Number(req.params.characterId)) {
+        next(new ForbiddenError(`JWT does not belong to the character being requested.`));
       }
-      const regexMatches = authHeader.match(/^Bearer (.*)$/)
-      if (regexMatches === null) {
-        throw new BadRequestError('The authorization header must begin with "Bearer "');
-      }
-      const accessTokenString: string = regexMatches[1];
-      const accessToken = new AccessToken(accessTokenString);
-
-      const tvr: TokenVerificationResponse = await accessToken.verify();
-      return res.json(tvr)
+      next();
     }
   }
-
 }
 
 export default AuthController;

@@ -1,6 +1,6 @@
-import ModelData from "./ModelData";
+import EveModelData from "./EveModelData";
 
-export default interface StationData extends ModelData {
+export default interface StationData extends EveModelData {
   max_dockable_ship_volume?: number;
   name?: string;
   office_rental_cost?: number;

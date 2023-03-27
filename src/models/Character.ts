@@ -1,10 +1,10 @@
 import { DataProxy } from "src/services";
 import CharacterData from "./CharacterData";
-import Model from "./Model";
+import EveModel from "./EveModel";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface Character extends CharacterData { }
-class Character extends Model implements CharacterData {
+class Character extends EveModel implements CharacterData {
   constructor(dataProxy: DataProxy, characterData: CharacterData) {
     super(dataProxy);
     Object.assign(this, characterData);

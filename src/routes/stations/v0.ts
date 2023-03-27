@@ -1,15 +1,16 @@
-import express, { Router } from 'express'
+import { Application } from 'express'
 import Joi from 'joi';
 
-import { StationTradingController } from 'src/controllers'
-import { Validator } from 'src/services';
+import { StationTradingController, ValidationController } from 'src/controllers'
 
-export default function stationRoutes(stationTradingController: StationTradingController): Router {
-  const validator = new Validator();
-  const router = express.Router()
-  router.get(
-    '/',
-    validator.validate({
+export default function (
+  app: Application,
+  stationTradingController: StationTradingController,
+  validationController: ValidationController,
+) {
+  app.get(
+    '/v0/stations',
+    validationController.validate({
       query: Joi.object({
         'constellation-id': Joi.number(),
         'region-id': Joi.number(),
@@ -20,9 +21,9 @@ export default function stationRoutes(stationTradingController: StationTradingCo
     stationTradingController.getStations(),
     stationTradingController.updateStations()
   );
-  router.get(
-    '/:stationId',
-    validator.validate({
+  app.get(
+    '/v0/stations/:stationId',
+    validationController.validate({
       params: Joi.object({
         stationId: Joi.number().required(),
       }),
@@ -30,5 +31,4 @@ export default function stationRoutes(stationTradingController: StationTradingCo
     stationTradingController.getStation(),
     stationTradingController.updateStations()
   );
-  return router;
 }

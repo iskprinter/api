@@ -10,7 +10,9 @@ import { Subject } from 'src/tools';
 
 export default class EsiService {
 
-  constructor(public esiRequestCollection: Collection<EsiRequestData>) { }
+  constructor(
+    public esiRequestCollection: Collection<EsiRequestData>
+  ) { }
 
   /**
    * Usage:
@@ -70,14 +72,14 @@ export default class EsiService {
 
         log.info(`Submitting request for requestId '${requestId}'...`);
         const page = 1;
-        const esiResponse = await this._getPage<T>(config, page, priorRequest);
+        const esiResponse = await this.getPage<T>(config, page, priorRequest);
         await subscriber.next(esiResponse.data);
         const maxPages = esiResponse.headers['x-pages'] ? Number(esiResponse.headers['x-pages']) : 1;
 
         const requestPromises = [];
         for (let page = 2; page <= maxPages; page += 1) {
           requestPromises.push((async () => {
-            const esiResponse = await this._getPage<T>(config, page, priorRequest);
+            const esiResponse = await this.getPage<T>(config, page, priorRequest);
             await subscriber.next(esiResponse.data);
           })());
         }
@@ -92,7 +94,7 @@ export default class EsiService {
           ...(config.params ? { params: config.params } : {}),
         });
 
-        return subscriber.complete?.();
+        return await subscriber.complete?.();
       } catch (err) {
         await subscriber.error?.(err);
       }
@@ -100,7 +102,7 @@ export default class EsiService {
     });
   }
 
-  async _getPage<T>(config: AxiosRequestConfig, page: number, priorRequest?: EsiRequest): Promise<AxiosResponse<T>> {
+  async getPage<T>(config: AxiosRequestConfig, page: number, priorRequest?: EsiRequest): Promise<AxiosResponse<T>> {
     return requester.request<T>({
       ...config,
       headers: {
@@ -167,7 +169,7 @@ export default class EsiService {
     log.info(`Locking request with requestId '${requestId}'...`);
     await this._lockRequest(requestId);
     try {
-      return next();
+      return await next();
     } finally {
       log.info(`Unlocking request with requestId '${requestId}'...`);
       await this._unlockRequest(requestId);

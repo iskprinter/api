@@ -7,7 +7,7 @@ import {
 import EsiService from "./EsiService";
 import AuthService from "./AuthService";
 import DataProxy from "./DataProxy";
-import Validator from "./Validator";
+import ValidationController from "../controllers/ValidationController";
 
 export {
   AnyMarketableTypeStrategy,
@@ -17,5 +17,5 @@ export {
   EsiService,
   AuthService,
   DataProxy,
-  Validator
+  ValidationController,
 }
