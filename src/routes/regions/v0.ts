@@ -17,8 +17,6 @@ export default function (
       }),
     }),
     stationTradingController.getRegions(),
-    stationTradingController.updateRegions(),
-    stationTradingController.updateConstellations(),
   );
   return router;
 }

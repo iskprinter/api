@@ -8,10 +8,10 @@ import {
   BadRequestError,
   UnauthorizedError,
 } from 'src/errors'
-import { Token } from 'src/models'
+import { Token, TokenData } from 'src/models'
 import log from 'src/tools/Logger';
 import ForbiddenError from 'src/errors/ForbiddenError';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosResponse } from 'axios';
 import { Collection } from 'src/databases';
 
 export default class AuthService {
@@ -77,6 +77,21 @@ export default class AuthService {
     return token;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  decodeJwtPayload(jwt: string): any {
+    return JSON.parse(Buffer.from(
+      jwt
+        .split('.')[1]
+        .replace(/-/g, '+')
+        .replace(/_/g, '/'),
+      'base64'
+    ).toString());
+  }
+
+  async deleteTokens(tokens: Partial<TokenData>): Promise<void> {
+    await this.tokensCollection.delete(tokens);
+  }
+
   async refreshEveTokens(eveRefreshToken: string): Promise<Token> {
     // Send it to Eve for refreshing.
     const config = {
@@ -108,14 +123,14 @@ export default class AuthService {
       access_token: newEveAccessToken,
       refresh_token: newEveRefreshToken
     } = eveResponse.data;
-    return this.tokensCollection.updateOne({ eveRefreshToken }, {
+    return await this.tokensCollection.updateOne({ eveRefreshToken }, {
       eveAccessToken: newEveAccessToken,
       eveRefreshToken: newEveRefreshToken
     });
   }
 
   async refreshIskprinterTokens(iskprinterRefreshToken: string): Promise<Token> {
-    const iskprinterRefreshTokenPayload = await this.verifyJwt(iskprinterRefreshToken);
+    const iskprinterRefreshTokenPayload = this.decodeJwtPayload(iskprinterRefreshToken);
     const priorToken = await this.tokensCollection.findOne({ iskprinterRefreshToken });
     if (!priorToken) {
       throw new ForbiddenError(`No such refresh token was found.`);
@@ -134,27 +149,34 @@ export default class AuthService {
   async createAccessToken(payload: object) {
     return this.createJwt({
       ...payload,
-      exp: (new Date()).setTime(Date.now() + 20 * 60 * 1000), // 20 minute expiration
-      time: Date.now(),
+      exp: Math.floor((new Date()).setTime(Date.now() + 20 * 60 * 1000) / 1000), // 20 minute expiration
+      time: Math.floor(Date.now() / 1000),
     });
   }
 
   async createJwt(payload: object) {
-    const jwtKeyPath = env.get('JWT_KEY_PATH').required().asString();
-    const jwtKey = (await fs.readFile(jwtKeyPath)).toString();
-    return jwt.sign(payload, jwtKey, { algorithm: 'ES512' });
+    const jwtPrivateKeyPath = env.get('JWT_PRIVATE_KEY_PATH').required().asString();
+    const jwtPrivateKey = (await fs.readFile(jwtPrivateKeyPath)).toString();
+    return jwt.sign(payload, jwtPrivateKey, { algorithm: 'ES512' });
   }
 
   async createRefreshToken(payload: object) {
     return this.createJwt({
       ...payload,
-      exp: (new Date()).setTime(Date.now() + 20 * 24 * 60 * 60 * 1000), // 20 days expiration
-      time: Date.now(),
+      exp: Math.floor((new Date()).setTime(Date.now() + 20 * 24 * 60 * 60 * 1000) / 1000), // 20 days expiration
+      time: Math.floor(Date.now() / 1000),
     });
   }
 
-  async getTokens(partialToken: { iskprinterAccessToken?: string, iskprinterRefreshToken?: string, eveAccessToken?: string, eveRefreshToken?: string }): Promise<Token> {
-    return this.tokensCollection.findOne(partialToken);
+  getCharacterIdFromAuthHeader(authHeader?: string): number {
+    const iskprinterAccessToken = this.getTokenFromAuthorizationHeader(authHeader);
+    const payload = this.decodeJwtPayload(iskprinterAccessToken);
+    const characterId = Number(payload.characterId);
+    return characterId;
+  }
+
+  async getTokens(partialToken: Partial<Token>): Promise<Token> {
+    return await this.tokensCollection.findOne(partialToken);
   }
 
   getTokenFromAuthorizationHeader(authorization?: string): string {
@@ -173,52 +195,52 @@ export default class AuthService {
     return token;
   }
 
-  async getEveTokens(iskprinterAccessToken: string): Promise<{ eveAccessToken: string, eveRefreshToken: string }> {
-    const token = await this.tokensCollection.findOne({ iskprinterAccessToken });
-    return {
-      eveAccessToken: token.eveAccessToken,
-      eveRefreshToken: token.eveRefreshToken
-    };
+  tokenIsExpired(token: string, bufferMs?: number): boolean {
+    const payload = this.decodeJwtPayload(token);
+    if (!payload.exp || (payload.exp < Math.floor((Date.now() + (bufferMs || 0)) / 1000))) {
+      return true;
+    }
+    return false;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async verifyJwt(iskprinterToken: string): Promise<any> {
-    const jwtKeyPath = env.get('JWT_KEY_PATH').required().asString();
-    const jwtKey = (await fs.readFile(jwtKeyPath)).toString();
-    const payload = (() => {
-      try {
-        return jwt.verify(iskprinterToken, jwtKey);
-      } catch (err) {
-        throw new ForbiddenError(`JWT verification did not pass.`);
-      }
-    })();
-    if (typeof payload == 'string') {
-      throw new BadRequestError('The JWT payload was not a serialized object');
-    }
-    if (!payload.exp || payload.exp < Date.now()) {
+  async verifyIskprinterJwt(iskprinterToken: string): Promise<any> {
+    if (this.tokenIsExpired(iskprinterToken)) {
       throw new ForbiddenError('The JWT has expired.');
+    }
+    const jwtPublicKeyPath = env.get('JWT_PUBLIC_KEY_PATH').required().asString();
+    const jwtPublicKey = (await fs.readFile(jwtPublicKeyPath)).toString();
+    let payload;
+    try {
+      payload = jwt.verify(iskprinterToken, jwtPublicKey);
+    } catch (err) {
+      throw new ForbiddenError(`JWT verification did not pass.`);
     }
     return payload;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  decodeJwtPayload(jwt: string): any {
-    return JSON.parse(Buffer.from(
-      jwt
-        .split('.')[1]
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_'),
-      'base64'
-    ).toString())
-  }
-
-  getCharacterIdFromAuthorization(auth: string): number {
-    const token = this.getTokenFromAuthorizationHeader(auth);
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = JSON.parse(Buffer.from(base64, 'base64').toString());
-    const characterId = Number(jsonPayload.sub.match(/CHARACTER:EVE:(?<id>\d+)/).groups.id);
-    return characterId;
+  async withEveReauth<T>(authHeader: string, request: (eveAccessToken: string) => Promise<T>): Promise<T> {
+    const iskprinterAccessToken = this.getTokenFromAuthorizationHeader(authHeader);
+    let tokens = await this.getTokens({ iskprinterAccessToken });
+    log.info(`getTokens retrieved these tokens: ${JSON.stringify(tokens)}`);
+    const bufferMs = 1000 * 60 * 1; // 1 minute
+    if (this.tokenIsExpired(tokens.eveAccessToken, bufferMs)) {
+      tokens = await this.refreshEveTokens(tokens.eveRefreshToken);
+      log.info(`refreshEveTokens retrieved these tokens: ${JSON.stringify(tokens)}`);
+    }
+    try {
+      return await request(tokens.eveAccessToken);
+    } catch (err) {
+      if (err instanceof AxiosError) {
+        if (!err.response) {
+          throw err;
+        }
+        if (err.response.status === 403) {
+          throw new ForbiddenError();
+        }
+      }
+      throw err;
+    }
   }
 
   async validateAuth(authHeader?: string) {
@@ -230,6 +252,6 @@ export default class AuthService {
       throw new UnauthorizedError(`Auth header does not match pattern ${authHeaderRegex}.`);
     }
     const token = (authHeader.match(/^Bearer (?<token>[\w-]+.[\w-]+.[\w-]+)$/) as RegExpMatchArray)[1];
-    return this.verifyJwt(token);
+    return this.verifyIskprinterJwt(token);
   }
 }

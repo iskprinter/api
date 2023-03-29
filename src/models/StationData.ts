@@ -1,20 +1,20 @@
 import EveModelData from "./EveModelData";
 
 export default interface StationData extends EveModelData {
-  max_dockable_ship_volume?: number;
-  name?: string;
-  office_rental_cost?: number;
-  owner?: number;
-  position?: {
+  max_dockable_ship_volume: number;
+  name: string;
+  office_rental_cost: number;
+  owner: number;
+  position: {
     x: number,
     y: number,
     z: number,
   };
-  race_id?: number;
+  race_id: number;
   reprocessing_efficiency?: number;
   reprocessing_stations_take?: number;
-  services?: string[];
+  services: string[];
   station_id: number;
-  system_id?: number;
-  type_id?: number;
+  system_id: number;
+  type_id: number;
 }

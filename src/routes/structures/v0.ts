@@ -14,14 +14,14 @@ export default function (
     authController.validateAuth(),
     validationController.validate({
       query: Joi.object({
-        'constellation-id': Joi.number(),
-        'region-id': Joi.number(),
-        'system-id': Joi.number(),
+        // 'constellation-id': Joi.number(),
+        // 'region-id': Joi.number(),
+        'system-id': Joi.number().required(),
       })
-        .oxor('constellation-id, region-id', 'system-id')
+        // .oxor('constellation-id, region-id', 'system-id')
     }),
     stationTradingController.getStructures(),
-    stationTradingController.updateStructures(),
+    // stationTradingController.updateStructures(),
   );
   app.get(
     '/v0/structures/:structureId',
@@ -32,6 +32,6 @@ export default function (
       }),
     }),
     stationTradingController.getStructure(),
-    stationTradingController.updateStructures(),
+    // stationTradingController.updateStructures(),
   );
 }

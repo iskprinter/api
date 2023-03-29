@@ -12,44 +12,56 @@ class AuthController {
     public tokensCollection: Collection<Token>,
   ) { }
 
-  getToken(): RequestHandler {
-    return async (req: Request, res: Response) => {
-      const { proof, proofType } = req.body;
-      const token = await (async () => {
-        switch (proofType) {
-          case 'authorizationCode': {
-            const authorizationCode = proof;
-            const token = await this.authService.createTokenFromAuthorizationCode(authorizationCode);
-            return token;
+  createTokens(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const { proof, proofType } = req.body;
+        const token = await (async () => {
+          switch (proofType) {
+            case 'authorizationCode': {
+              const authorizationCode = proof;
+              return await this.authService.createTokenFromAuthorizationCode(authorizationCode);
+            }
+            case 'refreshToken': {
+              const refreshToken = proof;
+              return await this.authService.refreshIskprinterTokens(refreshToken);
+            }
+            default:
+              throw new BadRequestError("Expected 'grantType' to be either 'authorizationCode' or 'priorAccessToken'.");
           }
-          case 'refreshToken': {
-            const refreshToken = proof;
-            const token = await this.authService.refreshIskprinterTokens(refreshToken);
-            return token;
-          }
-          default:
-            throw new BadRequestError("Expected 'grantType' to be either 'authorizationCode' or 'priorAccessToken'.");
-        }
-      })()
-      return res.json({
-        accessToken: token.iskprinterAccessToken,
-        refreshToken: token.iskprinterRefreshToken
-      })
+        })();
+        return res.json({
+          accessToken: token.iskprinterAccessToken,
+          refreshToken: token.iskprinterRefreshToken
+        })
+      } catch (err) {
+        return next(err);
+      }
     }
+  }
+
+  deleteTokens(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const iskprinterAccessToken = this.authService.getTokenFromAuthorizationHeader(req.headers.authorization);
+        await this.authService.deleteTokens({ iskprinterAccessToken });
+        res.sendStatus(204);
+      } catch (err) {
+        return next(err);
+      }
+    };
   }
 
   validateAuth(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
-      const authHeader = req.headers.authorization;
-      const jwtPayload = await (async () => {
-        try {
-          return await this.authService.validateAuth(authHeader);
-        } catch (err) {
-          next(err);
+      try {
+        const authHeader = req.headers.authorization;
+        const jwtPayload = await this.authService.validateAuth(authHeader);
+        if (req.params.characterId && jwtPayload.characterId != Number(req.params.characterId)) {
+          return next(new ForbiddenError(`JWT does not belong to the character being requested.`));
         }
-      })();
-      if (req.params.characterId && jwtPayload.characterId != Number(req.params.characterId)) {
-        next(new ForbiddenError(`JWT does not belong to the character being requested.`));
+      } catch (err) {
+        return next(err);
       }
       next();
     }

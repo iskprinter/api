@@ -9,8 +9,8 @@ import {
 import ValidationController from 'src/controllers/ValidationController';
 import loadCharacterRoutes from 'src/routes/characters';
 import loadConstellationRoutes from 'src/routes/constellations';
-import loadDealRoutes from 'src/routes/deals';
-import loadOrderRoutes from 'src/routes/orders';
+import loadRecommendedTradesRoutes from 'src/routes/recommended-trades';
+// import loadOrderRoutes from 'src/routes/orders';
 import loadRegionRoutes from 'src/routes/regions';
 import loadStationRoutes from 'src/routes/stations';
 import loadStructureRoutes from 'src/routes/structures';
@@ -28,9 +28,9 @@ export default function (
   app.get('/', healthcheckController.announceHealth());
 
   loadCharacterRoutes(app, authController, profileController, stationTradingController);
-  loadConstellationRoutes(app, stationTradingController);
-  loadDealRoutes(app, authController, stationTradingController, validationController);
-  loadOrderRoutes(app, authController, stationTradingController, validationController);
+  loadConstellationRoutes(app, stationTradingController, validationController);
+  loadRecommendedTradesRoutes(app, authController, stationTradingController, validationController);
+  // loadOrderRoutes(app, authController, stationTradingController, validationController);
   loadRegionRoutes(app, stationTradingController, validationController);
   loadStationRoutes(app, stationTradingController, validationController);
   loadStructureRoutes(app, authController, stationTradingController, validationController);

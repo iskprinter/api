@@ -12,12 +12,12 @@ export default function (
     '/v0/systems',
     validationController.validate({
       query: Joi.object({
-        'constellation-id': Joi.number(),
-        'region-id': Joi.number(),
+        // 'constellation-id': Joi.number(),
+        'region-id': Joi.number().required(),
       })
-        .oxor('constellation-id', 'region-id')
+        // .oxor('constellation-id', 'region-id')
     }),
     stationTradingController.getSystems(),
-    stationTradingController.updateSystems(),
+    // stationTradingController.updateSystems(),
   );
 }

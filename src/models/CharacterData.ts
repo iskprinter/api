@@ -1,11 +1,5 @@
 import EveModelData from "./EveModelData";
 
-export interface CharacterLocation {
-  solar_system_id: number;
-  station_id?: number;
-  structure_id?: number;
-}
-
 export interface CharacterSkills {
   skills: {
     active_skill_level: number,
@@ -13,10 +7,21 @@ export interface CharacterSkills {
     skillpoints_in_skill: number,
     trained_skill_level: number
   }[],
+  total_sp: number;
+  unallocated_sp?: number;
 }
 
-export default interface CharacterData extends EveModelData {
+export interface CharacterData extends EveModelData {
+  alliance_id?: number;
+  birthday: string;
+  bloodline_id: number;
   character_id: number;
-  location?: CharacterLocation;
-  skills?: CharacterSkills;
+  corporation_id: number;
+  description?: string;
+  faction_id?: number;
+  gender: string;
+  name: string;
+  race_id: number;
+  security_status?: number;
+  title?: string;
 }

@@ -10,7 +10,7 @@ export default function (
   validationController: ValidationController,
 ) {
   app.get(
-    '/v0/deals',
+    '/v0/recommended-trades',
     authController.validateAuth(),
     validationController.validate({
       query: Joi.object({
@@ -19,7 +19,7 @@ export default function (
       })
         .xor('station-id', 'structure-id')
     }),
-    stationTradingController.getDeals(),
-    stationTradingController.updateDeals(),
+    stationTradingController.getRecommendedTrades(),
+    // stationTradingController.updateRecommendedTrades(),
   );
 }

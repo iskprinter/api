@@ -12,14 +12,14 @@ export default function (
     '/v0/stations',
     validationController.validate({
       query: Joi.object({
-        'constellation-id': Joi.number(),
-        'region-id': Joi.number(),
-        'system-id': Joi.number(),
+        // 'constellation-id': Joi.number(),
+        // 'region-id': Joi.number(),
+        'system-id': Joi.number().required(),
       })
-        .oxor('constellatoin-id, region-id', 'system-id')
+        // .oxor('constellation-id, region-id', 'system-id')
     }),
     stationTradingController.getStations(),
-    stationTradingController.updateStations()
+    // stationTradingController.updateStations()
   );
   app.get(
     '/v0/stations/:stationId',
@@ -29,6 +29,6 @@ export default function (
       }),
     }),
     stationTradingController.getStation(),
-    stationTradingController.updateStations()
+    // stationTradingController.updateStations()
   );
 }
