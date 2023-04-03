@@ -222,11 +222,9 @@ export default class AuthService {
   async withEveReauth<T>(authHeader: string, request: (eveAccessToken: string) => Promise<T>): Promise<T> {
     const iskprinterAccessToken = this.getTokenFromAuthorizationHeader(authHeader);
     let tokens = await this.getTokens({ iskprinterAccessToken });
-    log.info(`getTokens retrieved these tokens: ${JSON.stringify(tokens)}`);
     const bufferMs = 1000 * 60 * 1; // 1 minute
     if (this.tokenIsExpired(tokens.eveAccessToken, bufferMs)) {
       tokens = await this.refreshEveTokens(tokens.eveRefreshToken);
-      log.info(`refreshEveTokens retrieved these tokens: ${JSON.stringify(tokens)}`);
     }
     try {
       return await request(tokens.eveAccessToken);

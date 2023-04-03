@@ -8,7 +8,17 @@ import { CharacterData, CharacterLocationData, ConstellationData, EsiRequest, Es
 import { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { ServiceUnavailableError, TooManyRequestsError } from 'src/errors';
 
+interface QueuedRequest {
+  request: () => Promise<any>;
+  resolve: (data: any) => void;
+  reject: (err: unknown) => void;
+}
+
 export default class EsiService {
+
+  requestQueue: QueuedRequest[] = [];
+  activeRequestCount = 0;
+  maxRequestCount = 8; // Same as the axios agent max sockets in src/tools/Requester
 
   constructor(
     public esiRequestCollection: Collection<EsiRequestData>
@@ -117,7 +127,7 @@ export default class EsiService {
     const marketTypes = await Promise.all(marketTypeIds.map((marketTypeId) => this.getType(marketTypeId)));
     return marketTypes;
   }
-  
+
   async getRegion(regionId: number): Promise<RegionData> {
     return this._request<RegionData>({
       method: 'get',
@@ -223,20 +233,52 @@ export default class EsiService {
     return type;
   }
 
+  async executeQueuedRequests() {
+    while (this.activeRequestCount < this.maxRequestCount && this.requestQueue.length > 0) {
+      this.activeRequestCount += 1;
+      const { request, resolve, reject } = this.requestQueue.pop() as QueuedRequest
+      try {
+        const res = await request();
+        resolve(res);
+      } catch (err) {
+        reject(err);
+      } finally {
+        this.activeRequestCount -= 1;
+      }
+    }
+  }
+
+  async queueRequest<T>(request: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      if (this.activeRequestCount < this.maxRequestCount) {
+        this.activeRequestCount += 1;
+        request()
+          .then(resolve, reject)
+          .finally(() => {
+            this.activeRequestCount -= 1;
+            this.executeQueuedRequests();
+          });
+      } else {
+        this.requestQueue.push({ request, resolve, reject });
+      }
+    });
+  }
+
   async _request<T>(config: AxiosRequestConfig): Promise<T> {
 
-    const firstPageResponse = await this._getPage<T>(config);
+    const firstPageResponse = await this.queueRequest(() => this._getPage<T>(config));
     const totalPages = firstPageResponse.headers['x-pages'] ? Number(firstPageResponse.headers['x-pages']) : 1;
     if (totalPages === 1) {
       return firstPageResponse.data;
     }
     const requests = [];
     for (let page = 2; page <= totalPages; page += 1) {
-      requests.push((async () => {
+      requests.push(async () => {
         return this._getPage<T>(config, page);
-      }));
+      });
     }
-    const responses = await Promise.all(requests.map(async (request) => request()));
+    const responses = await Promise.all(requests.map(async (request) => this.queueRequest(request)));
+
     const responseData = [firstPageResponse, ...responses]
       .map((response) => response.data as unknown[])
       .reduce((d1, d2) => [...d1, ...d2], []);
@@ -272,9 +314,9 @@ export default class EsiService {
       return priorRequest.response as AxiosResponse<T>;
     }
 
-    // If the prior request was locked sooner than 1 hour ago, abort.
+    // If the prior request was locked sooner than 1 minute ago, abort.
     if (this._requestIsLocked(priorRequest)) {
-      log.info(`Request with requestId ${requestId} was locked sooner than 1 hour ago.`);
+      log.info(`Request with requestId ${requestId} was locked sooner than 1 minutes ago.`);
       throw new TooManyRequestsError();
     }
 
@@ -337,7 +379,7 @@ export default class EsiService {
   }
 
   _requestIsLocked(request: EsiRequest) {
-    return request && request.locked > (Date.now() - 1000 * 60 * 60);
+    return request && request.locked > (Date.now() - 1000 * 60);
   }
 
   async _retryOnServerError<T>(request: () => Promise<AxiosResponse<T>>): Promise<AxiosResponse<T>> {
