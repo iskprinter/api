@@ -1,21 +1,11 @@
 import EsiRequestData from "./EsiRequestData";
 
-export default class EsiRequest implements EsiRequestData {
-  requestId: string
-  locked: number;
-  etag: string;
-  expires: number;
-  method: string;
-  url: string;
-  params: object;
+// eslint-disable-next-line @typescript-eslint/no-empty-interface, @typescript-eslint/no-empty-interface
+interface EsiRequest extends EsiRequestData { }
+class EsiRequest implements EsiRequestData {
   constructor(esiRequestData: EsiRequestData) {
-    this.requestId = esiRequestData.requestId;
-    this.locked = esiRequestData.locked;
-    this.etag = esiRequestData.etag;
-    this.expires = esiRequestData.expires;
-    this.method = esiRequestData.method;
-    this.url = esiRequestData.url;
-    this.params = esiRequestData.params;
+    Object.assign(this, esiRequestData);
   }
-
 }
+
+export default EsiRequest;

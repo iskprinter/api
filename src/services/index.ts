@@ -1,21 +1,21 @@
 import {
-  AnyMarketableTypeStrategy,
-  DealFinder,
-  DealFinderStrategy,
-  InventoryTimesMarginStrategy,
-} from "./DealFinder";
+  TradeRecommender,
+  TradeRecommenderStrategy,
+  RandomTradeStrategy,
+} from "./TradeRecommender";
 import EsiService from "./EsiService";
 import AuthService from "./AuthService";
-import DataProxy from "./DataProxy";
-import Validator from "./Validator";
+// import DataProxy from "./DataProxy";
+import ValidationController from "../controllers/ValidationController";
 
 export {
-  AnyMarketableTypeStrategy,
-  DealFinder,
-  DealFinderStrategy,
-  InventoryTimesMarginStrategy,
-  EsiService,
+  // AnyMarketableTypeStrategy,
+  // DataProxy,
+  // InventoryTimesMarginStrategy,
   AuthService,
-  DataProxy,
-  Validator
+  TradeRecommender,
+  TradeRecommenderStrategy,
+  EsiService,
+  RandomTradeStrategy,
+  ValidationController,
 }

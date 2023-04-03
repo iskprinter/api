@@ -6,6 +6,6 @@ export default interface Collection<T> {
   find(query: object, options?: { projection: object }): Promise<Array<T>>;
   findOne(query: object): Promise<T>;
   insertOne(document: T): Promise<T>;
-  putMany(documents: Array<Partial<T>>): Promise<Array<T>>;
+  putMany(documents: Array<Partial<T>>, query?: (document: T) => Partial<T>): Promise<Array<T>>;
   updateOne(query: object, document: Partial<T>, ): Promise<T>;
 }

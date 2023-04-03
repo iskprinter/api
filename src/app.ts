@@ -5,24 +5,38 @@ import expressPinoLogger from 'express-pino-logger';
 
 import startServer from 'src/bin/startServer';
 import { MongoDatabase } from 'src/databases';
-import indexRoutes from 'src/routes/index';
+import loadRoutes from 'src/routes/index';
 import { HttpError } from 'src/errors';
 import log from 'src/tools/Logger';
 import {
   CharacterData,
   ConstellationData,
   EsiRequestData,
-  GroupData,
+  MarketGroupData,
   OrderData,
+  RecommendedTradeData,
   RegionData,
   StationData,
   SystemData,
   TokenData,
+  TransactionData,
   TypeData
 } from 'src/models';
-import { AuthService, DataProxy as DataProxy, EsiService } from 'src/services';
-import { AuthController, HealthcheckController, StationTradingController } from './controllers';
+import {
+  AuthService,
+  // DataProxy,
+  EsiService,
+  TradeRecommender
+} from 'src/services';
+import {
+  AuthController,
+  HealthcheckController,
+  ProfileController,
+  StationTradingController
+} from './controllers';
 import StructureData from './models/StructureData';
+import ValidationController from './controllers/ValidationController';
+import recommendedTrades from './routes/recommended-trades';
 
 async function main(): Promise<void> {
 
@@ -45,14 +59,16 @@ async function main(): Promise<void> {
   const charactersCollection = database.getCollection<CharacterData>('characters');
   const constellationsCollection = database.getCollection<ConstellationData>('constellations');
   const esiRequestCollection = database.getCollection<EsiRequestData>('esiRequests');
-  const groupsCollection = database.getCollection<GroupData>('groups');
+  const groupsCollection = database.getCollection<MarketGroupData>('marketGroups');
   const ordersCollection = database.getCollection<OrderData>('orders');
+  const recommendedTradesCollection = database.getCollection<RecommendedTradeData>('recommendedTrades');
   const regionsCollection = database.getCollection<RegionData>('regions');
   const stationsCollection = database.getCollection<StationData>('stations');
   const structuresCollection = database.getCollection<StructureData>('structures');
   const systemsCollection = database.getCollection<SystemData>('systems');
   const typesCollection = database.getCollection<TypeData>('types');
   const tokensCollection = database.getCollection<TokenData>('tokens');
+  const transactionsCollection = database.getCollection<TransactionData>('transactions');
 
   // Create indexes, if necessary
   await Promise.all([
@@ -61,36 +77,45 @@ async function main(): Promise<void> {
     esiRequestCollection.createIndex({ requestId: 1 }),
     groupsCollection.createIndex({ market_group_id: 1 }),
     ordersCollection.createIndex({ order_id: 1 }),
+    recommendedTradesCollection.createIndex({ characterId: 1 }),
     regionsCollection.createIndex({ region_id: 1 }),
     stationsCollection.createIndex({ station_id: 1 }),
     structuresCollection.createIndex({ structure_id: 1 }),
     systemsCollection.createIndex({ system_id: 1 }),
     typesCollection.createIndex({ type_id: 1 }),
     tokensCollection.createIndex({ accessToken: 1 }),
-  ])
+    transactionsCollection.createIndex({ characterId: 1 }),
+  ]);
 
   // Load Services
-  const authService = new AuthService();
+  const authService = new AuthService(tokensCollection);
   const esiService = new EsiService(esiRequestCollection);
-  const dataProxy = new DataProxy(
-    esiService,
-    charactersCollection,
-    constellationsCollection,
-    groupsCollection,
-    ordersCollection,
-    regionsCollection,
-    stationsCollection,
-    structuresCollection,
-    systemsCollection,
-    typesCollection,
+  // const dataProxy = new DataProxy(
+  //   esiService,
+  //   charactersCollection,
+  //   constellationsCollection,
+  //   groupsCollection,
+  //   ordersCollection,
+  //   regionsCollection,
+  //   stationsCollection,
+  //   structuresCollection,
+  //   systemsCollection,
+  //   typesCollection,
+  // );
+  const tradeRecommender = new TradeRecommender(
+    recommendedTradesCollection,
+    transactionsCollection,
   )
 
   // Load Controllers
-  const authController = new AuthController(tokensCollection, authService);
+  const authController = new AuthController(authService, tokensCollection);
   const healthcheckController = new HealthcheckController();
+  const profileController = new ProfileController(authService, esiService);
+  const validationController = new ValidationController();
   const stationTradingController = new StationTradingController(
     authService,
-    dataProxy
+    esiService,
+    tradeRecommender,
   );
 
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -99,11 +124,14 @@ async function main(): Promise<void> {
   });
 
   // Load the application routes
-  app.use('/', indexRoutes(
+  loadRoutes(
+    app,
     authController,
     healthcheckController,
+    profileController,
+    validationController,
     stationTradingController,
-  ));
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.use((err: any, req: Request, res: Response, next: NextFunction): void => {
