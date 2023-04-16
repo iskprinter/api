@@ -1,13 +1,12 @@
 import TradeRecommender from "./TradeRecommender";
 import {
-  TradeRecommenderStrategy,
   RandomTradeStrategy,
+  TradeRecommenderStrategy,
 } from "./TradeRecommenderStrategies";
 
 export {
   // AnyMarketableTypeStrategy,
+  RandomTradeStrategy,
   TradeRecommender,
   TradeRecommenderStrategy,
-  // InventoryTimesMarginStrategy,
-  RandomTradeStrategy,
 }

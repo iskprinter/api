@@ -1,6 +1,6 @@
-import { RecommendedTradeData } from "src/models";
+import { MarketSummary, RecommendedTradeData } from "src/models";
 import TradeData from "src/models/TradeData";
 
 export default interface TradeRecommenderStrategy {
-  recommendTrades(characterId: number, priorTrades: TradeData[]): RecommendedTradeData[];
+  recommendTrade(characterId: number, budget: number, marketSummary: MarketSummary, priorTrades: TradeData[]): RecommendedTradeData;
 }

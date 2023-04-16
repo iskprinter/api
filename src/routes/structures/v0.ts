@@ -25,12 +25,12 @@ export default function (
   );
   app.get(
     '/v0/structures/:structureId',
-    authController.validateAuth(),
     validationController.validate({
       params: Joi.object({
         'structureId': Joi.number().required(),
       }),
     }),
+    authController.validateAuth(),
     stationTradingController.getStructure(),
     // stationTradingController.updateStructures(),
   );

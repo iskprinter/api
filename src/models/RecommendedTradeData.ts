@@ -1,16 +1,27 @@
 export default interface RecommendedTradeData {
-  characterId: number;
-  timestamp: number;
-  recommendedTradeId: string;
-  typeId: number;
-  typeName: string;
-  action: {
+  action?: {
     buyVolume: number;
+    buyPrice: number;
   };
-  state: {
-    maxBuyPrice: number;
+  characterId: number;
+  recommendedTradeId: string;
+  state?: {
+    budget: number;
     buyVolume: number;
-    minSellPrice: number;
+    maxBuyPrice?: number;
+    minSellPrice?: number;
     sellVolume: number;
   };
+  nextState?: {
+    budget: number;
+    buyVolume: number;
+    maxBuyPrice?: number;
+    minSellPrice?: number;
+    sellVolume: number;
+  };
+  reward?: number;
+  status: string;
+  dateCreated: number;
+  typeId?: number;
+  typeName?: string;
 }

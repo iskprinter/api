@@ -1,16 +1,7 @@
-import { RecommendedTradeData, OrderData, TypeData } from "src/models";
+import { RecommendedTradeData, OrderData, TypeData, MarketSummary } from "src/models";
 import TradeRecommenderStrategy from "./TradeRecommenderStrategy";
 import { TradeData } from "src/models";
-import crypto from 'crypto';
-
-interface MarketSummary {
-  [typeId: number]: {
-    minSellPrice: number;
-    maxBuyPrice: number;
-    buyVolume: number;
-    sellVolume: number;
-  }
-}
+import { BadRequestError } from "src/errors";
 
 export default class RandomTradeStrategy implements TradeRecommenderStrategy {
 
@@ -19,50 +10,48 @@ export default class RandomTradeStrategy implements TradeRecommenderStrategy {
     public marketOrders: OrderData[],
   ) { }
 
-  recommendTrades(characterId: number, priorTrades: TradeData[]): RecommendedTradeData[] {
-    const selectedTypes = [];
-    for (let i = 0; i < 10; i += 1) {
-      selectedTypes.push(this.marketTypes[Math.floor(Math.random() * this.marketTypes.length)]);
-    }
-    const marketSummary = this._getMarketSummary(this.marketOrders);
-    const recommendedTrades: RecommendedTradeData[] = selectedTypes.map((type) => ({
+  recommendTrade(characterId: number, budget: number, marketSummary: MarketSummary, priorTrades: TradeData[]): RecommendedTradeData {
+    const selectedType = this._getRandomTypeWithinBudget(budget, marketSummary);
+    const maxBuyPrice = marketSummary[selectedType.type_id]?.maxBuyPrice || 1;
+    const buyVolume = Math.floor(budget / maxBuyPrice);
+    const recommendedTrade = {
       characterId,
       action: {
-        buyVolume: 5,
+        buyVolume,
+        buyPrice: maxBuyPrice,
       },
       state: {
-        maxBuyPrice: marketSummary[type.type_id]?.maxBuyPrice || 0,
-        buyVolume: marketSummary[type.type_id]?.buyVolume || 0,
-        minSellPrice: marketSummary[type.type_id]?.minSellPrice || 0,
-        sellVolume: marketSummary[type.type_id]?.sellVolume || 0,
+        budget,
+        buyVolume: marketSummary[selectedType.type_id]?.buyVolume || 0,
+        maxBuyPrice,
+        minSellPrice: marketSummary[selectedType.type_id]?.minSellPrice || Infinity,
+        sellVolume: marketSummary[selectedType.type_id]?.sellVolume || 0,
       },
-      recommendedTradeId: crypto.randomUUID(),
-      timestamp: Date.now(),
-      typeId: type.type_id,
-      typeName: String(this.marketTypes.find((t) => t.type_id === type.type_id)?.name),
-    }));
-    return recommendedTrades;
+      recommendedTradeId: 'placeholder',
+      dateCreated: Date.now(),
+      typeId: selectedType.type_id,
+      typeName: String(this.marketTypes.find((t) => t.type_id === selectedType.type_id)?.name),
+      status: 'Complete'
+    };
+    return recommendedTrade;
   }
-  
-  _getMarketSummary(marketOrders: OrderData[]): MarketSummary {
-    const marketSummary: MarketSummary = {};
-    for (const order of marketOrders) {
-      if (!marketSummary[order.type_id]) {
-        marketSummary[order.type_id] = {
-          buyVolume: order.is_buy_order ? order.volume_remain : 0,
-          maxBuyPrice: order.is_buy_order ? order.price : 0,
-          minSellPrice: order.is_buy_order ? 0 : order.price,
-          sellVolume: order.is_buy_order ? 0 : order.volume_remain,
-        }
-      } else {
-        marketSummary[order.type_id] = {
-          buyVolume: marketSummary[order.type_id].buyVolume + (order.is_buy_order ? order.volume_remain : 0),
-          minSellPrice: order.is_buy_order ? marketSummary[order.type_id].minSellPrice : Math.min(order.price, marketSummary[order.type_id].minSellPrice),
-          maxBuyPrice: order.is_buy_order ? Math.max(order.price, marketSummary[order.type_id].maxBuyPrice) : marketSummary[order.type_id].maxBuyPrice,
-          sellVolume: marketSummary[order.type_id].sellVolume + (order.is_buy_order ? 0 : order.volume_remain),
-        }
-      }
+
+  _getRandomTypeWithinBudget(budget: number, marketSummary: MarketSummary) {
+    if (budget <= 1) {
+      throw new BadRequestError("Your character's budget is less than 1");
     }
-    return marketSummary;
+
+    const typeIsWithinBudget = (budget: number, type: TypeData): boolean => {
+      const maxBuyPrice = marketSummary[type.type_id]?.maxBuyPrice || 1;
+      const buyVolume = Math.floor(budget / maxBuyPrice);
+      return buyVolume > 0;
+    }
+
+    let selectedType: TypeData;
+    do {
+      selectedType = this.marketTypes[Math.floor(Math.random() * this.marketTypes.length)];
+    } while (!typeIsWithinBudget(budget, selectedType));
+    return selectedType;
   }
+
 }

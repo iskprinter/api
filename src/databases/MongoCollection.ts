@@ -1,6 +1,6 @@
 import mongodb, { Document, OptionalId } from 'mongodb';
 import Collection from './Collection';
-import log from 'src/tools/Logger';
+import log from 'src/tools/log';
 
 export default class MongoCollection<T extends object> implements Collection<T> {
 

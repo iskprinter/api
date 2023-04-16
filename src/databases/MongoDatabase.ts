@@ -3,7 +3,7 @@ import { Db, MongoClient } from 'mongodb';
 
 import Collection from './Collection';
 import Database from "./Database";
-import log from 'src/tools/Logger';
+import log from 'src/tools/log';
 import MongoCollection from './MongoCollection';
 
 export default class MongoDatabase implements Database {

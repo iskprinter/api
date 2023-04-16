@@ -27,7 +27,7 @@ export default function (
 ) {
   app.get('/', healthcheckController.announceHealth());
 
-  loadCharacterRoutes(app, authController, profileController, stationTradingController);
+  loadCharacterRoutes(app, authController, profileController, stationTradingController, validationController);
   loadConstellationRoutes(app, stationTradingController, validationController);
   loadRecommendedTradesRoutes(app, authController, stationTradingController, validationController);
   // loadOrderRoutes(app, authController, stationTradingController, validationController);

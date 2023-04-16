@@ -1,9 +1,11 @@
 import { Application } from 'express'
+import Joi from 'joi';
 
 import {
   AuthController,
   ProfileController,
-  StationTradingController
+  StationTradingController,
+  ValidationController
 } from 'src/controllers'
 
 export default function (
@@ -11,6 +13,7 @@ export default function (
   authController: AuthController,
   profileController: ProfileController,
   stationTradingController: StationTradingController,
+  validationController: ValidationController,
 ) {
   app.get(
     '/v0/characters',
@@ -19,16 +22,30 @@ export default function (
   );
   app.get(
     '/v0/characters/:characterId/orders',
+    validationController.validate({
+      params: Joi.object({
+        characterId: Joi.number().required(),
+      }),
+    }),
     authController.validateAuth(),
     stationTradingController.getCharactersOrders(),
   );
   app.get(
     '/v0/characters/:characterId/portrait',
-    // authController.validateAuth(),
+    validationController.validate({
+      params: Joi.object({
+        characterId: Joi.number().required(),
+      }),
+    }),
     profileController.getCharacterPortrait(),
   );
   app.get(
     '/v0/characters/:characterId/trades',
+    validationController.validate({
+      params: Joi.object({
+        characterId: Joi.number().required(),
+      }),
+    }),
     authController.validateAuth(),
     stationTradingController.getCharactersTrades(),
   );
