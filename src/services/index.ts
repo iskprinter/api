@@ -1,7 +1,7 @@
 import {
+  RandomTradeStrategy,
   TradeRecommender,
   TradeRecommenderStrategy,
-  RandomTradeStrategy,
 } from "./TradeRecommender";
 import EsiService from "./EsiService";
 import AuthService from "./AuthService";
@@ -11,11 +11,10 @@ import ValidationController from "../controllers/ValidationController";
 export {
   // AnyMarketableTypeStrategy,
   // DataProxy,
-  // InventoryTimesMarginStrategy,
   AuthService,
-  TradeRecommender,
-  TradeRecommenderStrategy,
   EsiService,
   RandomTradeStrategy,
+  TradeRecommender,
+  TradeRecommenderStrategy,
   ValidationController,
 }

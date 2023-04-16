@@ -3,8 +3,8 @@ import crypto from 'crypto';
 
 import requester from 'src/tools/Requester';
 import { Collection } from "src/databases";
-import log from "src/tools/Logger";
-import { CharacterData, CharacterLocationData, ConstellationData, EsiRequest, EsiRequestData, MarketGroupData, OrderData, RegionData, StationData, StructureData, SystemData, TransactionData, TypeData } from 'src/models';
+import log from "src/tools/log";
+import { CharacterData, CharacterLocationData, ConstellationData, EsiRequest, EsiRequestData, MarketGroupData, OrderData, RegionData, SkillData, StationData, StructureData, SystemData, TransactionData, TypeData } from 'src/models';
 import { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import { ServiceUnavailableError, TooManyRequestsError } from 'src/errors';
 
@@ -63,6 +63,26 @@ export default class EsiService {
       },
       method: 'get',
       url: `/v1/characters/${characterId}/orders/history`,
+    });
+  }
+
+  async getCharactersSkills(eveAccessToken: string, characterId: number): Promise<{ skills: SkillData[], total_sp: number, unallocated_sp: number }> {
+    return this._request<{ skills: SkillData[], total_sp: number, unallocated_sp: number }>({
+      headers: {
+        authorization: `Bearer ${eveAccessToken}`,
+      },
+      method: 'get',
+      url: `/v4/characters/${characterId}/skills`,
+    });
+  }
+
+  async getCharactersWallet(eveAccessToken: string, characterId: number): Promise<number> {
+    return this._request<number>({
+      headers: {
+        authorization: `Bearer ${eveAccessToken}`,
+      },
+      method: 'get',
+      url: `/v1/characters/${characterId}/wallet`,
     });
   }
 
@@ -314,11 +334,21 @@ export default class EsiService {
       return priorRequest.response as AxiosResponse<T>;
     }
 
-    // If the prior request was locked sooner than 1 minute ago, abort.
-    if (this._requestIsLocked(priorRequest)) {
-      log.info(`Request with requestId ${requestId} was locked sooner than 1 minutes ago.`);
-      throw new TooManyRequestsError();
-    }
+    await this._withExponentialBackoff(
+      () => {
+        if (!this._requestIsLocked(priorRequest)) {
+          return;
+        }
+        throw new TooManyRequestsError();
+      },
+      (err) => {
+        if (err instanceof TooManyRequestsError) {
+          // Do nothing
+        }
+        throw err;
+      },
+      () => { throw new TooManyRequestsError(); }
+    )
 
     const response = await this._withRequestLocked(requestId, async () => {
       try {
@@ -383,16 +413,9 @@ export default class EsiService {
   }
 
   async _retryOnServerError<T>(request: () => Promise<AxiosResponse<T>>): Promise<AxiosResponse<T>> {
-    const maxAttempts = 3;
-    const initialDelay = 50; // ms
-    const expBackoff = 2;
-    const delay = (attempt: number): number => {
-      return Math.random() * initialDelay * (expBackoff ** attempt) / 2
-    };
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      try {
-        return await request();
-      } catch (err) {
+    return this._withExponentialBackoff(
+      async () => await request(),
+      (err: unknown) => {
         if (!(err instanceof AxiosError)) {
           throw err;
         }
@@ -402,10 +425,9 @@ export default class EsiService {
         if (![502, 503, 504].includes(err.response.status)) {
           throw err;
         }
-        await new Promise((resolve) => setTimeout(resolve, delay(attempt)));
-      }
-    }
-    throw new ServiceUnavailableError('ESI is down.');
+      },
+      () => { throw new ServiceUnavailableError('ESI is down.'); }
+    );
   }
 
   async _updatePriorRequest(requestId: string, request: Partial<EsiRequest>): Promise<EsiRequest> {
@@ -420,6 +442,26 @@ export default class EsiService {
       { requestId },
       { locked: 0 }
     );
+  }
+
+  async _withExponentialBackoff<T>(
+    request: () => T | Promise<T>,
+    onError: (err: unknown) => unknown | Promise<unknown>,
+    otherwise: () => Promise<T>,
+    { maxAttempts = 3, initialDelay = 50 /* ms */, expBackoff = 2 } = {},
+  ): Promise<T> {
+    const delay = (attempt: number): number => {
+      return Math.random() * initialDelay * (expBackoff ** attempt) / 2
+    };
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        return await request();
+      } catch (err) {
+        await onError(err);
+        await new Promise((resolve) => setTimeout(resolve, delay(attempt)));
+      }
+    }
+    return await otherwise();
   }
 
   async _withRequestLocked<T>(requestId: string, next: () => Promise<T>): Promise<T> {

@@ -1,4 +1,4 @@
-import Logger from "./Logger";
+import Logger from "./log";
 import Requester from "./Requester";
 import Subject from "./Subject";
 

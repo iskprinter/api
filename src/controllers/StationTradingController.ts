@@ -1,5 +1,7 @@
 import { AssertionError } from 'assert';
 import { NextFunction, Request, RequestHandler, Response } from 'express'
+import { ResourceNotFoundError } from 'src/errors';
+import { RecommendedTradeData, SkillData, TypeData } from 'src/models';
 
 import {
   AuthService,
@@ -7,6 +9,7 @@ import {
   RandomTradeStrategy,
 } from 'src/services';
 import TradeRecommender from 'src/services/TradeRecommender/TradeRecommender';
+import log from 'src/tools/log';
 
 class StationTradingController {
   constructor(
@@ -14,6 +17,104 @@ class StationTradingController {
     public esiService: EsiService,
     public tradeRecommender: TradeRecommender,
   ) { }
+
+  createRecommendedTrade(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      let recommendedTrade: RecommendedTradeData | undefined;
+      try {
+        const authHeader = String(req.headers.authorization);
+        const stationId = Number(req.body.stationId);
+        const structureId = Number(req.body.structureId);
+        const characterId = this.authService.getCharacterIdFromAuthHeader(authHeader);
+
+        recommendedTrade = await this.tradeRecommender.createRecommendedTrade(characterId);
+        const { recommendedTradeId } = recommendedTrade;
+        res.json({ recommendedTrade });
+
+        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Identifying market region' });
+        const systemId = await (async () => {
+          if (stationId) {
+            const station = await this.esiService.getStation(stationId);
+            return station.system_id;
+          } else if (structureId) {
+            const structure = await this.authService.withEveReauth(authHeader, (eveAccessToken) => {
+              return this.esiService.getStructure(eveAccessToken, structureId);
+            });
+            return structure.solar_system_id;
+          } else {
+            throw new AssertionError({ message: 'Neither stationId nor structureId were provided to getRecommendedTrades().' });
+          }
+        })();
+        const regionId = (await this.esiService.getConstellations())
+          .find((constellation) => constellation.systems.includes(systemId))
+          ?.region_id;
+        if (!regionId) {
+          throw new AssertionError({ message: `Failed to find the region in which system ${systemId} resides.` });
+        }
+
+        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Getting character transactions' });
+        const recentTransactions = await this.authService.withEveReauth(authHeader, (eveAccessToken) => {
+          return this.esiService.getCharactersWalletTransactions(eveAccessToken, characterId);
+        });
+
+        await this.tradeRecommender.updateTransactions(characterId, recentTransactions);
+
+        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Getting market types' });
+        const marketTypes = (await this.esiService.getMarketTypes())
+          .filter((type) => !type.name.match(/blueprint/i))
+          .filter((type) => !type.name.match(/reaction formula/i));
+
+        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Getting market orders' });
+        const marketOrders = await this.esiService.getMarketOrders(regionId);
+
+        const structureOrders = structureId
+          ? await this.authService.withEveReauth(authHeader, async (eveAccessToken) => {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Getting structure orders' });
+            return this.esiService.getStructureOrders(eveAccessToken, structureId);
+          })
+          : [];
+
+        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Determining budget' });
+        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Getting character transactions' });
+        const walletBalance = await this.authService.withEveReauth(authHeader, (eveAccessToken) => {
+          return this.esiService.getCharactersWallet(eveAccessToken, characterId);
+        });
+        const activeOrders = await this.authService.withEveReauth(authHeader, (eveAccessToken) => {
+          return this.esiService.getCharactersActiveOrders(eveAccessToken, characterId);
+        });
+        const { skills } = await this.authService.withEveReauth(authHeader, (eveAccessToken) => {
+          return this.esiService.getCharactersSkills(eveAccessToken, characterId);
+        });
+        const maxOrders = this._getMaxOrders(skills, marketTypes);
+        const availableOrders = maxOrders - activeOrders.length;
+        const budget = walletBalance / availableOrders;
+
+        const orders = [...marketOrders, ...structureOrders]
+        const strategy = new RandomTradeStrategy(marketTypes, orders);
+        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Recommending trade' });
+        const rt = await this.tradeRecommender.recommendTrade(characterId, budget, orders, strategy);
+
+        recommendedTrade = {
+          ...rt,
+          typeName: rt.typeId ? (await this.esiService.getType(rt.typeId)).name : '',
+          recommendedTradeId: recommendedTrade.recommendedTradeId,
+          characterId,
+          status: 'Complete'
+        };
+        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId: recommendedTrade.recommendedTradeId }, recommendedTrade);
+
+      } catch (err) {
+        if (!res.headersSent) {
+          return next(err);
+        }
+        log.error(err);
+        if (recommendedTrade?.recommendedTradeId) {
+          await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId: recommendedTrade.recommendedTradeId }, { status: 'Error' });
+        }
+      }
+    };
+  }
 
   getCharacters(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
@@ -40,7 +141,7 @@ class StationTradingController {
       } catch (err) {
         return next(err);
       }
-    }
+    };
   }
 
   //   getCurrentLocation(): RequestHandler {
@@ -69,7 +170,7 @@ class StationTradingController {
       } catch (err) {
         next(err);
       }
-    }
+    };
   }
 
   getCharactersOrders(): RequestHandler {
@@ -93,7 +194,7 @@ class StationTradingController {
       } catch (err) {
         next(err);
       }
-    }
+    };
   }
 
   getCharactersTrades(): RequestHandler {
@@ -114,65 +215,8 @@ class StationTradingController {
       } catch (err) {
         next(err);
       }
-    }
-  }
-
-  getRecommendedTrades(): RequestHandler {
-    return async (req: Request, res: Response, next: NextFunction) => {
-      try {
-        const authHeader = String(req.headers.authorization);
-        const stationId = Number(req.query['station-id']);
-        const structureId = Number(req.query['structure-id']);
-
-        const systemId = await (async () => {
-          if (stationId) {
-            const station = await this.esiService.getStation(stationId);
-            return station.system_id;
-          } else if (structureId) {
-            const structure = await this.authService.withEveReauth(authHeader, (eveAccessToken) => {
-              return this.esiService.getStructure(eveAccessToken, structureId);
-            });
-            return structure.solar_system_id;
-          } else {
-            throw new AssertionError({ message: 'Neither stationId nor structureId were provided to getRecommendedTrades().' });
-          }
-        })();
-        const regionId = (await this.esiService.getConstellations())
-          .find((constellation) => constellation.systems.includes(systemId))
-          ?.region_id;
-        if (!regionId) {
-          throw new AssertionError({ message: `Failed to find the region in which system ${systemId} resides.` });
-        }
-
-        const characterId = this.authService.getCharacterIdFromAuthHeader(authHeader);
-        const recentTransactions = await this.authService.withEveReauth(authHeader, (eveAccessToken) => {
-          return this.esiService.getCharactersWalletTransactions(eveAccessToken, characterId);
-        });
-
-        await this.tradeRecommender.updateTransactions(characterId, recentTransactions);
-
-        const [
-          marketTypes,
-          marketOrders,
-        ] = await Promise.all([
-          this.esiService.getMarketTypes(),
-          this.esiService.getMarketOrders(regionId),
-        ]);
-        const structureOrders = structureId
-          ? await this.authService.withEveReauth(authHeader, (eveAccessToken) => {
-            return this.esiService.getStructureOrders(eveAccessToken, structureId);
-          })
-          : [];
-        const orders = [...marketOrders, ...structureOrders]
-        const randomTradeStrategy = new RandomTradeStrategy(marketTypes, orders);
-        const recommendedTrades = await this.tradeRecommender.recommendTrades(characterId, randomTradeStrategy);
-        res.json({ recommendedTrades });
-      } catch (err) {
-        return next(err);
-      }
     };
   }
-
 
   // getMarketGroups(): RequestHandler {
   //   return async (req: Request, res: Response, next: NextFunction) => {
@@ -190,6 +234,36 @@ class StationTradingController {
   //     }
   //   }
 
+  getRecommendedTrade(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const recommendedTradeId = String(req.params.recommendedTradeId);
+        const authHeader = String(req.headers.authorization);
+        const characterId = this.authService.getCharacterIdFromAuthHeader(authHeader);
+        const recommendedTrade = await this.tradeRecommender.getRecommendedTrade(characterId, recommendedTradeId);
+        if (!recommendedTrade) {
+          throw new ResourceNotFoundError();
+        }
+        res.json({ recommendedTrade });
+      } catch (err) {
+        next(err);
+      }
+    };
+  }
+
+  getRecommendedTrades(): RequestHandler {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const authHeader = String(req.headers.authorization);
+        const characterId = this.authService.getCharacterIdFromAuthHeader(authHeader);
+        const recommendedTrades = await this.tradeRecommender.getRecommendedTrades(characterId);
+        res.json({ recommendedTrades });
+      } catch (err) {
+        next(err);
+      }
+    };
+  }
+
   getRegions(): RequestHandler {
     return async (req: Request, res: Response, next: NextFunction) => {
       try {
@@ -198,7 +272,7 @@ class StationTradingController {
       } catch (err) {
         next(err);
       }
-    }
+    };
   }
 
   getStation(): RequestHandler {
@@ -210,7 +284,7 @@ class StationTradingController {
       } catch (err) {
         next(err);
       }
-    }
+    };
   }
 
   getStations(): RequestHandler {
@@ -225,7 +299,7 @@ class StationTradingController {
       } catch (err) {
         next(err);
       }
-    }
+    };
   }
 
   getStructure(): RequestHandler {
@@ -240,7 +314,7 @@ class StationTradingController {
       } catch (err) {
         next(err);
       }
-    }
+    };
   }
 
   getStructures(): RequestHandler {
@@ -258,7 +332,7 @@ class StationTradingController {
       } catch (err) {
         next(err);
       }
-    }
+    };
   }
 
   getSystems(): RequestHandler {
@@ -270,7 +344,7 @@ class StationTradingController {
       } catch (err) {
         next(err);
       }
-    }
+    };
   }
 
   //   updateCharacters(): RequestHandler {
@@ -380,6 +454,32 @@ class StationTradingController {
   //       return next()
   //     };
   //   }
+
+  _getMaxOrders(skills: SkillData[], marketTypes: TypeData[]): number {
+    const tradeSkillId = marketTypes.find((type) => type.name === 'Trade')?.type_id;
+    const retailSkillId = marketTypes.find((type) => type.name === 'Retail')?.type_id;
+    const wholesaleSkillId = marketTypes.find((type) => type.name === 'Wholesale')?.type_id;
+    const tycoonSkillId = marketTypes.find((type) => type.name === 'Tycoon')?.type_id;
+
+    if (!tradeSkillId || !retailSkillId || !wholesaleSkillId || !tycoonSkillId) {
+      throw new AssertionError({
+        message: `Unable to identify the ID of one or more skills. ${JSON.stringify({
+          tradeSkillId,
+          retailSkillId,
+          wholesaleSkillId,
+          tycoonSkillId,
+        })}`
+      });
+    }
+
+    const tradeSkillLevel = skills.find((skill) => skill.skill_id === tradeSkillId)?.active_skill_level || 0;
+    const retailSkillLevel = skills.find((skill) => skill.skill_id === retailSkillId)?.active_skill_level || 0;
+    const wholesaleSkillLevel = skills.find((skill) => skill.skill_id === wholesaleSkillId)?.active_skill_level || 0;
+    const tycoonSkillLevel = skills.find((skill) => skill.skill_id === tycoonSkillId)?.active_skill_level || 0;
+
+    const maxOrders = 5 + tradeSkillLevel * 4 + retailSkillLevel * 8 + wholesaleSkillLevel * 16 + tycoonSkillLevel * 32;
+    return maxOrders;
+  }
 
 }
 

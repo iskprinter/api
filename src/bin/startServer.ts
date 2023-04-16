@@ -8,7 +8,7 @@ import { AddressInfo } from 'net'
 import env from 'env-var';
 import http from 'http'
 
-import log from 'src/tools/Logger';
+import log from 'src/tools/log';
 import { Application } from 'express';
 
 export default function startServer(app: Application): void {

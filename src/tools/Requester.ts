@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import { Agent } from 'https'
-import log from 'src/tools/Logger';
+import log from 'src/tools/log';
 
 const axiosAgent = axios.create({
   httpsAgent: new Agent({

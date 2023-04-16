@@ -12,14 +12,28 @@ export default function (
   app.get(
     '/v0/recommended-trades',
     authController.validateAuth(),
-    validationController.validate({
-      query: Joi.object({
-        'station-id': Joi.number(),
-        'structure-id': Joi.number(),
-      })
-        .xor('station-id', 'structure-id')
-    }),
     stationTradingController.getRecommendedTrades(),
-    // stationTradingController.updateRecommendedTrades(),
+  );
+  app.get(
+    '/v0/recommended-trades/:recommendedTradeId',
+    validationController.validate({
+      params: Joi.object({
+        recommendedTradeId: Joi.string().required(),
+      }),
+    }),
+    authController.validateAuth(),
+    stationTradingController.getRecommendedTrade(),
+  );
+  app.post(
+    '/v0/recommended-trades',
+    validationController.validate({
+      body: Joi.object({
+        stationId: Joi.number(),
+        structureId: Joi.number(),
+      })
+        .xor('stationId', 'structureId')
+    }),
+    authController.validateAuth(),
+    stationTradingController.createRecommendedTrade(),
   );
 }

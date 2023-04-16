@@ -8,7 +8,10 @@ class RecommendedTrade implements RecommendedTradeData {
   }
 
   get profit(): number {
-    return this.action.buyVolume * (this.state.minSellPrice - this.state.maxBuyPrice);
+    if (!this.action || !this.state) {
+      return 0;
+    }
+    return this.action?.buyVolume * ((this.state.minSellPrice || Infinity) - (this.state.maxBuyPrice || 0));
   }
 }
 export default RecommendedTrade;

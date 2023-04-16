@@ -9,11 +9,13 @@ import EsiRequest from './EsiRequest';
 import EsiRequestData from './EsiRequestData';
 // import Group from './Group';
 import MarketGroupData from './MarketGroupData';
+import MarketSummary from './MarketSummary';
 // import Order from './Order';
 import OrderData from './OrderData';
 // import Region from './Region';
 import RegionData from './RegionData';
 // import Station from './Station';
+import SkillData from './SkillData';
 import StationData from './StationData';
 // import Structure from './Structure';
 import StructureData from './StructureData';
@@ -41,11 +43,13 @@ export {
   EsiRequestData,
   // MarketGroup,
   MarketGroupData,
+  MarketSummary,
   // Order,
   OrderData,
   // Region,
   RegionData,
   // Station,
+  SkillData,
   StationData,
   // Structure,
   StructureData,

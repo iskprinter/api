@@ -7,7 +7,7 @@ import startServer from 'src/bin/startServer';
 import { MongoDatabase } from 'src/databases';
 import loadRoutes from 'src/routes/index';
 import { HttpError } from 'src/errors';
-import log from 'src/tools/Logger';
+import log from 'src/tools/log';
 import {
   CharacterData,
   ConstellationData,

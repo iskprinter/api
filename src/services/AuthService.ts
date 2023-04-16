@@ -9,7 +9,7 @@ import {
   UnauthorizedError,
 } from 'src/errors'
 import { Token, TokenData } from 'src/models'
-import log from 'src/tools/Logger';
+import log from 'src/tools/log';
 import ForbiddenError from 'src/errors/ForbiddenError';
 import { AxiosError, AxiosResponse } from 'axios';
 import { Collection } from 'src/databases';
