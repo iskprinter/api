@@ -18,7 +18,7 @@ export default class EsiService {
 
   requestQueue: QueuedRequest[] = [];
   activeRequestCount = 0;
-  maxRequestCount = 8; // Same as the axios agent max sockets in src/tools/Requester
+  maxRequestCount = 64; // Same as the axios agent max sockets in src/tools/Requester
 
   constructor(
     public esiRequestCollection: Collection<EsiRequestData>
@@ -306,7 +306,7 @@ export default class EsiService {
   }
 
   async _getPage<T>(config: AxiosRequestConfig, page?: number): Promise<AxiosResponse<T>> {
-    const configWithoutEtag = {
+    const configForUniqueRequestId = {
       ...config, // Includes method and url
       baseURL: `https://esi.evetech.net`,
       headers: {
@@ -319,13 +319,14 @@ export default class EsiService {
     };
 
     // Retrieve the cached request from the database
-    const requestId = this._getRequestId(configWithoutEtag);
+    const requestId = this._getRequestId(configForUniqueRequestId);
     const priorRequest = await this._getRequest(requestId);
     const completeConfig = {
-      ...configWithoutEtag,
+      ...configForUniqueRequestId,
       headers: {
-        ...configWithoutEtag.headers,
-        ...(priorRequest?.etag && { 'if-none-match': priorRequest.etag })
+        ...configForUniqueRequestId.headers,
+        ...(priorRequest?.etag && { 'if-none-match': priorRequest.etag }),
+        'user-agent': 'agent=axios; contact=Kronn8',
       }
     };
 
@@ -426,7 +427,7 @@ export default class EsiService {
           throw err;
         }
       },
-      () => { throw new ServiceUnavailableError('ESI is down.'); }
+      () => { throw new ServiceUnavailableError('ESI appears to be down.'); }
     );
   }
 
