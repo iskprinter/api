@@ -39,8 +39,7 @@ export default class TradeRecommender {
     const pastTrades = await this.getPastTrades(characterId);
     log.info(JSON.stringify(pastTrades));
     const marketSummary = this._getMarketSummary(marketOrders);
-    let recommendedTrade = strategy.recommendTrade(characterId, budget, marketSummary, pastTrades);
-    recommendedTrade = await this.recommendedTradesCollection.updateOne({ recommendedTradeId: recommendedTrade.recommendedTradeId }, recommendedTrade);
+    const recommendedTrade = strategy.recommendTrade(characterId, budget, marketSummary, pastTrades);
     return recommendedTrade;
   }
 
