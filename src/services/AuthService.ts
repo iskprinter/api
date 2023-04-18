@@ -34,7 +34,8 @@ export default class AuthService {
       headers: {
         'Authorization': this.basicAuthHeader(),
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Host': 'login.eveonline.com'
+        'Host': 'login.eveonline.com',
+        'User-Agent': 'agent=axios; contact=Kronn8',
       }
     };
     const body = new URLSearchParams({
@@ -98,7 +99,8 @@ export default class AuthService {
       headers: {
         'Authorization': this.basicAuthHeader(),
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Host': 'login.eveonline.com'
+        'Host': 'login.eveonline.com',
+        'User-Agent': 'agent=axios; contact=Kronn8',
       }
     }
     const body = new URLSearchParams({

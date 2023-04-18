@@ -5,7 +5,7 @@ import log from 'src/tools/log';
 const axiosAgent = axios.create({
   httpsAgent: new Agent({
     keepAlive: true,
-    maxSockets: 8,
+    maxSockets: 64, // Same as the maxRequestCount in src/services/EsiService
   }),
 });
 
