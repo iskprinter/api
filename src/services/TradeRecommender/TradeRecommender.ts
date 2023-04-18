@@ -43,8 +43,8 @@ export default class TradeRecommender {
     return recommendedTrade;
   }
 
-  async updateRecommendedTrade(query: object, recommendedTrade: Partial<RecommendedTradeData>): Promise<RecommendedTradeData> {
-    return this.recommendedTradesCollection.updateOne(query, recommendedTrade);
+  async updateRecommendedTrade(recommendedTrade: Partial<RecommendedTradeData>): Promise<RecommendedTradeData> {
+    return this.recommendedTradesCollection.updateOne({ recommendedTradeId: recommendedTrade.recommendedTradeId }, recommendedTrade);
   }
 
   async updateTransactions(characterId: number, recentTransactions: TransactionData[]): Promise<TransactionData[]> {

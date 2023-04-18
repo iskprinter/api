@@ -28,10 +28,9 @@ class StationTradingController {
         const characterId = this.authService.getCharacterIdFromAuthHeader(authHeader);
 
         recommendedTrade = await this.tradeRecommender.createRecommendedTrade(characterId);
-        const { recommendedTradeId } = recommendedTrade;
         res.json({ recommendedTrade });
 
-        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Identifying market region' });
+        recommendedTrade = await this.tradeRecommender.updateRecommendedTrade({ ...recommendedTrade, status: 'Identifying market region' });
         const systemId = await (async () => {
           if (stationId) {
             const station = await this.esiService.getStation(stationId);
@@ -52,31 +51,31 @@ class StationTradingController {
           throw new AssertionError({ message: `Failed to find the region in which system ${systemId} resides.` });
         }
 
-        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Getting character transactions' });
+        recommendedTrade = await this.tradeRecommender.updateRecommendedTrade({ ...recommendedTrade, status: 'Getting character transactions' });
         const recentTransactions = await this.authService.withEveReauth(authHeader, (eveAccessToken) => {
           return this.esiService.getCharactersWalletTransactions(eveAccessToken, characterId);
         });
 
         await this.tradeRecommender.updateTransactions(characterId, recentTransactions);
 
-        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Getting market types' });
+        recommendedTrade = await this.tradeRecommender.updateRecommendedTrade({ ...recommendedTrade, status: 'Getting market types' });
         const marketTypes = (await this.esiService.getMarketTypes())
           .filter((type) => !type.name.match(/blueprint/i))
           .filter((type) => !type.name.match(/reaction formula/i));
 
-        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Getting market orders' });
+        recommendedTrade = await this.tradeRecommender.updateRecommendedTrade({ ...recommendedTrade, status: 'Getting market orders' });
         const marketOrders = await this.esiService.getMarketOrders(regionId);
 
         const structureOrders = structureId
           ? await this.authService.withEveReauth(authHeader, async (eveAccessToken) => {
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Getting structure orders' });
+            recommendedTrade = await this.tradeRecommender.updateRecommendedTrade({ ...recommendedTrade, status: 'Getting structure orders' });
             return this.esiService.getStructureOrders(eveAccessToken, structureId);
           })
           : [];
 
-        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Determining budget' });
-        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Getting character transactions' });
+        recommendedTrade = await this.tradeRecommender.updateRecommendedTrade({ ...recommendedTrade, status: 'Determining budget' });
+        recommendedTrade = await this.tradeRecommender.updateRecommendedTrade({ ...recommendedTrade, status: 'Getting character transactions' });
         const walletBalance = await this.authService.withEveReauth(authHeader, (eveAccessToken) => {
           return this.esiService.getCharactersWallet(eveAccessToken, characterId);
         });
@@ -92,7 +91,7 @@ class StationTradingController {
 
         const orders = [...marketOrders, ...structureOrders]
         const strategy = new RandomTradeStrategy(marketTypes, orders);
-        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId }, { status: 'Recommending trade' });
+        recommendedTrade = await this.tradeRecommender.updateRecommendedTrade({ ...recommendedTrade, status: 'Recommending trade' });
         const rt = await this.tradeRecommender.recommendTrade(characterId, budget, orders, strategy);
 
         recommendedTrade = {
@@ -102,7 +101,7 @@ class StationTradingController {
           characterId,
           status: 'Complete'
         };
-        await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId: recommendedTrade.recommendedTradeId }, recommendedTrade);
+        await this.tradeRecommender.updateRecommendedTrade(recommendedTrade);
 
       } catch (err) {
         if (!res.headersSent) {
@@ -110,7 +109,7 @@ class StationTradingController {
         }
         log.error(err);
         if (recommendedTrade?.recommendedTradeId) {
-          await this.tradeRecommender.updateRecommendedTrade({ recommendedTradeId: recommendedTrade.recommendedTradeId }, { status: 'Error' });
+          await this.tradeRecommender.updateRecommendedTrade({ ...recommendedTrade, status: 'Error' });
         }
       }
     };
