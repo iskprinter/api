@@ -39,13 +39,12 @@ export default class TradeRecommender {
     const pastTrades = await this.getPastTrades(characterId);
     log.info(JSON.stringify(pastTrades));
     const marketSummary = this._getMarketSummary(marketOrders);
-    let recommendedTrade = strategy.recommendTrade(characterId, budget, marketSummary, pastTrades);
-    recommendedTrade = await this.recommendedTradesCollection.updateOne({ recommendedTradeId: recommendedTrade.recommendedTradeId }, recommendedTrade);
+    const recommendedTrade = strategy.recommendTrade(characterId, budget, marketSummary, pastTrades);
     return recommendedTrade;
   }
 
-  async updateRecommendedTrade(query: object, recommendedTrade: Partial<RecommendedTradeData>): Promise<RecommendedTradeData> {
-    return this.recommendedTradesCollection.updateOne(query, recommendedTrade);
+  async updateRecommendedTrade(recommendedTrade: Partial<RecommendedTradeData>): Promise<RecommendedTradeData> {
+    return this.recommendedTradesCollection.updateOne({ recommendedTradeId: recommendedTrade.recommendedTradeId }, recommendedTrade);
   }
 
   async updateTransactions(characterId: number, recentTransactions: TransactionData[]): Promise<TransactionData[]> {
