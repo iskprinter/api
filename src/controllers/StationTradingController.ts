@@ -128,12 +128,23 @@ class StationTradingController {
           this.authService.withEveReauth(authorization, (eveAccessToken) => {
             return this.esiService.getCharacterLocation(eveAccessToken, characterId);
           }),
-        ])
+        ]);
+
+        const systemId = characterLocation.solar_system_id;
+        const constellations = await this.esiService.getConstellations();
+        const regionId = constellations
+            .find((constellation) => constellation.systems.includes(systemId))
+            ?.region_id;
+
         res.json({
           characters: [
             {
               ...character,
-              location: characterLocation
+              location: {
+                ...characterLocation,
+                systemId,
+                regionId
+              }
             }
           ]
         });
