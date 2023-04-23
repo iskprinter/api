@@ -17,7 +17,42 @@ Suggests market trades in Eve Online.
 1. Start a MongoDB container.
     ```
     docker start mongodb 2>/dev/null \
-    || docker run -d -p 127.0.0.1:27017:27017 --name mongodb mongo:latest
+        || docker run \
+            -d \
+            --name mongodb \
+            -p 127.0.0.1:27017:27017 \
+            -v mongodb:/data/db \
+            mongo:5
+    ```
+
+1. Start a Kafka container. This is based on https://github.com/confluentinc/cp-all-in-one/blob/master/cp-all-in-one-kraft/docker-compose.yml.
+    ```
+    docker start kafka 2>/dev/null \
+        || docker run \
+            -e KAFKA_BROKER_ID=1 \
+            -e KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT \
+            -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092 \
+            -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+            -e KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0 \
+            -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
+            -e KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1 \
+            -e KAFKA_JMX_PORT=9101 \
+            -e KAFKA_JMX_HOSTNAME=localhost \
+            -e KAFKA_PROCESS_ROLES=broker,controller \
+            -e KAFKA_NODE_ID=1 \
+            -e 'KAFKA_CONTROLLER_QUORUM_VOTERS=1@broker:29093' \
+            -e KAFKA_LISTENERS=PLAINTEXT://broker:29092,CONTROLLER://broker:29093,PLAINTEXT_HOST://0.0.0.0:9092 \
+            -e KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT \
+            -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+            -e KAFKA_LOG_DIRS=/tmp/kraft-combined-logs \
+            -d \
+            -h broker \
+            --name kafka \
+            -p 127.0.0.1:9091:9091 \
+            -p 127.0.0.1:9092:9092 \
+            -v kafka:/var/lib/kafka/data \
+            confluentinc/cp-kafka:7.3.3 \
+            bash -c 'sed -i "/KAFKA_ZOOKEEPER_CONNECT/d" /etc/confluent/docker/configure && sed -i "s/cub zk-ready/echo ignore zk-ready/" /etc/confluent/docker/ensure && echo "kafka-storage format --ignore-formatted --cluster-id=$(kafka-storage random-uuid) -c /etc/kafka/kafka.properties" >>/etc/confluent/docker/ensure && /etc/confluent/docker/run'
     ```
 
 1. Start the dev server.
