@@ -1,17 +1,13 @@
 import path from 'path';
-import * as tf from '@tensorflow/tfjs';
+import * as tf from '@tensorflow/tfjs-node';
 
 export default class Critic {
   checkpointDir: string;
   checkpointFile: string;
-  fc1: tf.SymbolicTensor | tf.SymbolicTensor[] | tf.Tensor<tf.Rank> | tf.Tensor<tf.Rank>[];
   fc1Dims: number;
-  fc2: tf.SymbolicTensor | tf.SymbolicTensor[] | tf.Tensor<tf.Rank> | tf.Tensor<tf.Rank>[];
   fc2Dims: number;
   name: string;
-  q: tf.SymbolicTensor | tf.SymbolicTensor[] | tf.Tensor<tf.Rank> | tf.Tensor<tf.Rank>[];
   model: tf.LayersModel;
-  stateLength: number;
   nActions: number;
   constructor(
     {
@@ -19,47 +15,59 @@ export default class Critic {
       fc2Dims = 8,
       name = 'critic',
       checkpointDir = '/tmp',
-      stateLength,
       nActions,
+      optimizer,
+      stateShape,
     }: {
       fc1Dims?: number;
       fc2Dims?: number;
       name?: string;
       checkpointDir?: string;
-      stateLength: number;
       nActions: number;
+      optimizer: tf.Optimizer;
+      stateShape: number[];
     }
   ) {
-    this.stateLength = stateLength;
     this.nActions = nActions;
     this.fc1Dims = fc1Dims;
-    this.fc2Dims = fc1Dims;
+    this.fc2Dims = fc2Dims;
     this.name = name;
     this.checkpointDir = checkpointDir;
-
     this.checkpointFile = path.join(this.checkpointDir, `${this.name}_ddpg.h5`);
 
-    const inputs = tf.input({ shape: [this.stateLength + this.nActions] });
-    this.fc1 = tf.layers.dense({
+    const inputs = tf.input({ shape: [stateShape[0] + this.nActions, ...stateShape.slice(1)] });
+    const fc1 = tf.layers.dense({
       activation: 'relu',
-      units: fc1Dims,
+      units: this.fc1Dims,
     }).apply(inputs);
-    this.fc2 = tf.layers.dense({
+    const fc2 = tf.layers.dense({
       activation: 'relu',
-      units: fc2Dims
-    }).apply(this.fc1);
-    this.q = tf.layers.dense({ units: 1 }).apply(this.fc2);
+      units: this.fc2Dims
+    }).apply(fc1);
+    const q = tf.layers.dense({ units: 1 }).apply(fc2);
     this.model = new tf.LayersModel({
       inputs,
-      outputs: this.q as tf.SymbolicTensor,
+      outputs: q as tf.SymbolicTensor,
     });
-  }
-
-  compile(optimizer: tf.Optimizer) {
     this.model.compile({
       optimizer,
       loss: 'MSE'
     });
+  }
+
+  getWeights(): tf.Tensor<tf.Rank>[] {
+    return this.model.getWeights();
+  }
+
+  predict(state: tf.Tensor, action: tf.Tensor<tf.Rank.R0>): tf.Tensor {
+    if (!this.model) {
+      throw new Error('You must compile a model before using it for prediction.');
+    }
+    return this.model.predict(tf.concat([state, action], 1)) as tf.Tensor;
+  }
+
+  setWeights(weights: tf.Tensor<tf.Rank>[]): Critic {
+    this.model.setWeights(weights);
     return this;
   }
 }

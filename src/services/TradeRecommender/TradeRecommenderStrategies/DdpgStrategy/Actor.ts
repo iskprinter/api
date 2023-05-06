@@ -1,19 +1,15 @@
 import path from 'path';
-import * as tf from '@tensorflow/tfjs';
+import * as tf from '@tensorflow/tfjs-node';
 
 export default class Actor /* extends tf.LayersModel */ {
 
   checkpointDir: string;
   checkpointFile: string;
-  fc1: tf.SymbolicTensor | tf.Tensor<tf.Rank> | tf.Tensor<tf.Rank>[] | tf.SymbolicTensor[];
   fc1Dims: number;
-  fc2: tf.SymbolicTensor | tf.Tensor<tf.Rank> | tf.Tensor<tf.Rank>[] | tf.SymbolicTensor[];
   fc2Dims: number;
-  mu: tf.SymbolicTensor | tf.Tensor<tf.Rank> | tf.Tensor<tf.Rank>[] | tf.SymbolicTensor[];
   nActions: number;
   name: string;
   model: tf.LayersModel;
-  stateLength: number;
   constructor(
     {
       checkpointDir = '/tmp',
@@ -21,14 +17,16 @@ export default class Actor /* extends tf.LayersModel */ {
       fc2Dims = 8,
       nActions = 1,
       name = 'actor',
-      stateLength,
+      optimizer,
+      stateShape,
     }: {
       checkpointDir?: string;
       fc1Dims?: number;
       fc2Dims?: number;
       nActions?: number;
       name?: string;
-      stateLength: number;
+      optimizer: tf.Optimizer,
+      stateShape: number[],
     }
   ) {
     this.checkpointDir = checkpointDir;
@@ -36,34 +34,41 @@ export default class Actor /* extends tf.LayersModel */ {
     this.fc2Dims = fc2Dims;
     this.nActions = nActions;
     this.name = name;
-    this.stateLength = stateLength;
-
     this.checkpointFile = path.join(this.checkpointDir, `${this.name}_ddpg.h5`);
 
-    const inputs = tf.input({ shape: [this.stateLength] })
-    this.fc1 = tf.layers.dense({
+    const inputs = tf.input({ shape: stateShape })
+    const fc1 = tf.layers.dense({
       activation: 'relu',
-      units: fc1Dims,
+      units: this.fc1Dims,
     }).apply(inputs);
-    this.fc2 = tf.layers.dense({
+    const fc2 = tf.layers.dense({
       activation: 'relu',
-      units: fc2Dims
-    }).apply(this.fc1);
-    this.mu = tf.layers.dense({
+      units: this.fc2Dims
+    }).apply(fc1);
+    const mu = tf.layers.dense({
       activation: 'tanh',
-      units: nActions
-    }).apply(this.fc2);
+      units: this.nActions
+    }).apply(fc2);
     this.model = new tf.LayersModel({
       inputs,
-      outputs: this.mu as tf.SymbolicTensor,
+      outputs: mu as tf.SymbolicTensor,
     });
-  }
-
-  compile(optimizer: tf.Optimizer) {
     this.model.compile({
       optimizer,
       loss: 'MSE'
     });
+  }
+
+  getWeights(): tf.Tensor<tf.Rank>[] {
+    return this.model.getWeights();
+  }
+
+  predict(state: tf.Tensor): tf.Tensor {
+    return this.model.predict(state) as tf.Tensor;
+  }
+
+  setWeights(weights: tf.Tensor<tf.Rank>[]): Actor {
+    this.model.setWeights(weights);
     return this;
   }
 }
