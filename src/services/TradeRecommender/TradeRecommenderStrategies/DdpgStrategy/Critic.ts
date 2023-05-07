@@ -1,41 +1,36 @@
-import path from 'path';
 import * as tf from '@tensorflow/tfjs-node';
 
 export default class Critic {
-  checkpointDir: string;
   checkpointFile: string;
   fc1Dims: number;
   fc2Dims: number;
-  name: string;
   model: tf.LayersModel;
-  nActions: number;
+  name: string;
   constructor(
     {
+      actionShape,
+      checkpointDir = '/tmp',
       fc1Dims = 8,
       fc2Dims = 8,
       name = 'critic',
-      checkpointDir = '/tmp',
-      nActions,
       optimizer,
-      stateShape,
+      observationShape,
     }: {
+      actionShape: number[];
+      checkpointDir?: string;
       fc1Dims?: number;
       fc2Dims?: number;
       name?: string;
-      checkpointDir?: string;
-      nActions: number;
       optimizer: tf.Optimizer;
-      stateShape: number[];
+      observationShape: number[];
     }
   ) {
-    this.nActions = nActions;
     this.fc1Dims = fc1Dims;
     this.fc2Dims = fc2Dims;
     this.name = name;
-    this.checkpointDir = checkpointDir;
-    this.checkpointFile = path.join(this.checkpointDir, `${this.name}_ddpg.h5`);
+    this.checkpointFile = `file://${checkpointDir}/${this.name}_ddpg.h5`;
 
-    const inputs = tf.input({ shape: [stateShape[0] + this.nActions, ...stateShape.slice(1)] });
+    const inputs = tf.input({ shape: [observationShape[0] + actionShape[0]] }); // Hacky. Generalize this.
     const fc1 = tf.layers.dense({
       activation: 'relu',
       units: this.fc1Dims,
@@ -51,7 +46,7 @@ export default class Critic {
     });
     this.model.compile({
       optimizer,
-      loss: 'MSE'
+      loss: 'meanSquaredError'
     });
   }
 
@@ -59,11 +54,21 @@ export default class Critic {
     return this.model.getWeights();
   }
 
-  predict(state: tf.Tensor, action: tf.Tensor<tf.Rank.R0>): tf.Tensor {
+  async load(): Promise<Critic> {
+    this.model = await tf.loadLayersModel(this.checkpointFile);
+    return this;
+  }
+
+  predict(observation: tf.Tensor, action: tf.Tensor<tf.Rank.R0>): tf.Tensor {
     if (!this.model) {
       throw new Error('You must compile a model before using it for prediction.');
     }
-    return this.model.predict(tf.concat([state, action], 1)) as tf.Tensor;
+    return this.model.predict(tf.concat([observation, action], 1)) as tf.Tensor;
+  }
+
+  async save(): Promise<Critic> {
+    await this.model.save(this.checkpointFile);
+    return this;
   }
 
   setWeights(weights: tf.Tensor<tf.Rank>[]): Critic {

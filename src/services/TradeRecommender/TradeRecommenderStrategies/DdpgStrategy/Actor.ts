@@ -1,53 +1,50 @@
-import path from 'path';
 import * as tf from '@tensorflow/tfjs-node';
 
 export default class Actor /* extends tf.LayersModel */ {
 
-  checkpointDir: string;
+  actionShape: number[];
   checkpointFile: string;
   fc1Dims: number;
   fc2Dims: number;
-  nActions: number;
-  name: string;
   model: tf.LayersModel;
+  name: string;
   constructor(
     {
+      actionShape = [1],
       checkpointDir = '/tmp',
       fc1Dims = 8,
       fc2Dims = 8,
-      nActions = 1,
       name = 'actor',
       optimizer,
-      stateShape,
+      observationShape,
     }: {
+      actionShape?: number[];
       checkpointDir?: string;
       fc1Dims?: number;
       fc2Dims?: number;
-      nActions?: number;
       name?: string;
       optimizer: tf.Optimizer,
-      stateShape: number[],
+      observationShape: number[],
     }
   ) {
-    this.checkpointDir = checkpointDir;
+    this.actionShape = actionShape;
     this.fc1Dims = fc1Dims;
     this.fc2Dims = fc2Dims;
-    this.nActions = nActions;
     this.name = name;
-    this.checkpointFile = path.join(this.checkpointDir, `${this.name}_ddpg.h5`);
+    this.checkpointFile = `file://${checkpointDir}/${this.name}_ddpg.h5`;
 
-    const inputs = tf.input({ shape: stateShape })
+    const inputs = tf.input({ shape: observationShape });
     const fc1 = tf.layers.dense({
       activation: 'relu',
       units: this.fc1Dims,
     }).apply(inputs);
     const fc2 = tf.layers.dense({
       activation: 'relu',
-      units: this.fc2Dims
+      units: this.fc2Dims,
     }).apply(fc1);
     const mu = tf.layers.dense({
       activation: 'tanh',
-      units: this.nActions
+      units: this.actionShape[0], // TODO: Generalize this by all dimensions
     }).apply(fc2);
     this.model = new tf.LayersModel({
       inputs,
@@ -55,7 +52,7 @@ export default class Actor /* extends tf.LayersModel */ {
     });
     this.model.compile({
       optimizer,
-      loss: 'MSE'
+      loss: 'meanSquaredError'
     });
   }
 
@@ -63,8 +60,18 @@ export default class Actor /* extends tf.LayersModel */ {
     return this.model.getWeights();
   }
 
-  predict(state: tf.Tensor): tf.Tensor {
-    return this.model.predict(state) as tf.Tensor;
+  async load(): Promise<Actor> {
+    this.model = await tf.loadLayersModel(this.checkpointFile);
+    return this;
+  }
+
+  predict(observation: tf.Tensor): tf.Tensor {
+    return this.model.predict(observation) as tf.Tensor;
+  }
+
+  async save(): Promise<Actor> {
+    await this.model.save(this.checkpointFile);
+    return this;
   }
 
   setWeights(weights: tf.Tensor<tf.Rank>[]): Actor {

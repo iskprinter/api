@@ -6,6 +6,6 @@ export default interface Environment {
   getActionSpace(): Box;
   getObservationSpace(): Box;
   getRewardRange(): number[];
-  reset(): any; // Observation
-  step(action: tf.Tensor): { observation: any, reward: tf.Tensor<tf.Rank.R0>, done: tf.Tensor<tf.Rank.R0> };
+  reset(): tf.Tensor1D;
+  step(action: tf.Tensor): { observation: tf.Tensor1D, reward: tf.Tensor<tf.Rank.R0>, done: tf.Tensor<tf.Rank.R0> };
 }

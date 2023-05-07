@@ -1,80 +1,61 @@
+import process from 'process';
+
 import DdpgAgent from "./DdpgAgent";
 import Environment from "./Environment";
 import Pendulum from "./test/Pendulum";
 
 describe('DdpgAgent', () => {
+  let env: Environment;
   let agent: DdpgAgent;
 
-  it('acts and learns', () => {
-
-    const env: Environment = new Pendulum();
+  beforeEach(() => {
+    env = new Pendulum();
     agent = new DdpgAgent({
-        env,
-        stateShape: env.getObservationSpace().shape,
-        nActions: env.getActionSpace().shape[0],
+      actionShape: env.getActionSpace().shape,
+      env,
+      maxMemorySize: 1024 ** 2,
+      observationShape: env.getObservationSpace().shape,
     });
-    const nGames = 250;
+  });
 
-    let bestScore = env.getRewardRange()[0];
+  it('acts and learns', async () => {
+    const nGames = 1;
     const scoreHistory = [];
     const loadCheckpoint = false;
 
-    const evaluate = (() => {
-      if (!loadCheckpoint) {
-        return false;
+    for (let game = 0; game < nGames; game += 1) {
+      let observation = env.reset();
+      let score = 0;
+      for (let step = 0; step < 200; step += 1) {
+        const action = agent.chooseAction(observation);
+        const {
+          observation: nextObservation,
+          reward,
+          done
+        } = env.step(action);
+        score += reward.bufferSync().get();
+        agent.remember(observation, action, reward, nextObservation, done);
+        if (!loadCheckpoint) {
+          agent.learn();
+          // await agent.saveModels();
+        }
+        observation = nextObservation;
       }
-      for (let nSteps = 0; nSteps <= agent.batchSize; nSteps += 1) {
-          const observation = env.reset();
-          const action = env.getActionSpace().sample();
-          const {
-            done,
-            observation: nextObservation,
-            reward,
-          } = env.step(action);
-          agent.remember(observation, action, reward, nextObservation, done);
-      }
-      agent.learn();
-      agent.loadModels();
-      return true
-    })();
+      scoreHistory.push(score);
+      const totalScore = scoreHistory
+        .reduce((sum, score) => sum + score, 0);
+
+      const memStats = process.memoryUsage();
+      console.log([
+        `episode:\t${game}`,
+        `score:\t${score}`,
+        `avg score:\t${totalScore / (game + 1)}`,
+        `mem (MB):\t${Math.floor(memStats.heapUsed / 1024 / 1024)}/${Math.floor(memStats.heapTotal / 1024 / 1024)}`,
+      ].join('\n'));
+    }
 
     for (let i = 0; i < nGames; i += 1) {
-        let observation = env.reset();
-        let score = 0;
-        for (let i = 0; i < 200; i += 1) {
-            const action = agent.chooseAction(observation, evaluate);
-            const {
-              observation: nextObservation,
-              reward,
-              done
-            } = env.step(action);
-            score += reward.bufferSync().get();
-            agent.remember(observation, action, reward, nextObservation, done);
-            if (!loadCheckpoint) {
-              agent.learn();
-            }
-            observation = nextObservation;
-        }
-        scoreHistory.push(score);
-        const avgScore = scoreHistory
-          .slice(-100)
-          .reduce((sum, score) => sum + score, 0);
-
-        if (avgScore > bestScore) {
-            bestScore = avgScore;
-            if (!loadCheckpoint) {
-                agent.saveModels();
-            }
-        }
-
-        console.log(`episode:\t${i}\nscore:\t${score}\navg score:\t${avgScore}`)
+      console.log(`game = ${i + 1}, score = ${scoreHistory[i]}`);
     }
-
-    if (!loadCheckpoint) {
-        for (let i = 1; i <= nGames; i += 1) {
-          console.log(`game = ${i}, score = ${scoreHistory[i]}`);
-        }    
-    }
-
   });
 });
