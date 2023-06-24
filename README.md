@@ -12,6 +12,8 @@ Suggests market trades in Eve Online.
     ```
     export CLIENT_ID='<client-id>'
     export CLIENT_SECRET='<client-secret>'
+    export JWT_PUBLIC_KEY_PATH='<path-to-jwt-public-key>'
+    export JWT_PRIVATE_KEY_PATH='<path-to-jwt-private-key>'
     ```
 
 1. Start a MongoDB container.
