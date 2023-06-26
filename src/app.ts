@@ -1,7 +1,7 @@
 import cors from 'cors';
 import env from 'env-var';
 import express, { Request, Response, NextFunction } from 'express';
-import expressPinoLogger from 'express-pino-logger';
+import loggerFactory from 'pino-http';
 
 import startServer from 'src/bin/startServer';
 import { MongoDatabase } from 'src/databases';
@@ -49,7 +49,8 @@ async function main(): Promise<void> {
   app.use(cors({ origin: env.get('FRONTEND_URLS').required().asString().split(",") }));
 
   // Enable pino logging
-  app.use(expressPinoLogger());
+  const logger = loggerFactory();
+  app.use(logger);
 
   // Enable body parsing
   app.use(express.json());

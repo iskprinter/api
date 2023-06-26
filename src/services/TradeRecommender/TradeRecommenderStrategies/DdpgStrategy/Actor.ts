@@ -1,69 +1,81 @@
-import path from 'path';
-import * as tf from '@tensorflow/tfjs';
+// import * as tf from '@tensorflow/tfjs-node';
 
-export default class Actor /* extends tf.LayersModel */ {
+// export default class Actor /* extends tf.LayersModel */ {
 
-  checkpointDir: string;
-  checkpointFile: string;
-  fc1: tf.SymbolicTensor | tf.Tensor<tf.Rank> | tf.Tensor<tf.Rank>[] | tf.SymbolicTensor[];
-  fc1Dims: number;
-  fc2: tf.SymbolicTensor | tf.Tensor<tf.Rank> | tf.Tensor<tf.Rank>[] | tf.SymbolicTensor[];
-  fc2Dims: number;
-  mu: tf.SymbolicTensor | tf.Tensor<tf.Rank> | tf.Tensor<tf.Rank>[] | tf.SymbolicTensor[];
-  nActions: number;
-  name: string;
-  model: tf.LayersModel;
-  stateLength: number;
-  constructor(
-    {
-      checkpointDir = '/tmp',
-      fc1Dims = 8,
-      fc2Dims = 8,
-      nActions = 1,
-      name = 'actor',
-      stateLength,
-    }: {
-      checkpointDir?: string;
-      fc1Dims?: number;
-      fc2Dims?: number;
-      nActions?: number;
-      name?: string;
-      stateLength: number;
-    }
-  ) {
-    this.checkpointDir = checkpointDir;
-    this.fc1Dims = fc1Dims;
-    this.fc2Dims = fc2Dims;
-    this.nActions = nActions;
-    this.name = name;
-    this.stateLength = stateLength;
+//   actionShape: number[];
+//   checkpointFile: string;
+//   fc1Dims: number;
+//   fc2Dims: number;
+//   model: tf.LayersModel;
+//   name: string;
+//   constructor(
+//     {
+//       actionShape = [1],
+//       checkpointDir = '/tmp',
+//       fc1Dims = 8,
+//       fc2Dims = 8,
+//       name = 'actor',
+//       optimizer,
+//       observationShape,
+//     }: {
+//       actionShape?: number[];
+//       checkpointDir?: string;
+//       fc1Dims?: number;
+//       fc2Dims?: number;
+//       name?: string;
+//       optimizer: tf.Optimizer,
+//       observationShape: number[],
+//     }
+//   ) {
+//     this.actionShape = actionShape;
+//     this.fc1Dims = fc1Dims;
+//     this.fc2Dims = fc2Dims;
+//     this.name = name;
+//     this.checkpointFile = `file://${checkpointDir}/${this.name}_ddpg.h5`;
 
-    this.checkpointFile = path.join(this.checkpointDir, `${this.name}_ddpg.h5`);
+//     const inputs = tf.input({ shape: observationShape });
+//     const fc1 = tf.layers.dense({
+//       activation: 'relu',
+//       units: this.fc1Dims,
+//     }).apply(inputs);
+//     const fc2 = tf.layers.dense({
+//       activation: 'relu',
+//       units: this.fc2Dims,
+//     }).apply(fc1);
+//     const mu = tf.layers.dense({
+//       activation: 'tanh',
+//       units: this.actionShape[0], // TODO: Generalize this by all dimensions
+//     }).apply(fc2);
+//     this.model = new tf.LayersModel({
+//       inputs,
+//       outputs: mu as tf.SymbolicTensor,
+//     });
+//     this.model.compile({
+//       optimizer,
+//       loss: 'meanSquaredError'
+//     });
+//   }
 
-    const inputs = tf.input({ shape: [this.stateLength] })
-    this.fc1 = tf.layers.dense({
-      activation: 'relu',
-      units: fc1Dims,
-    }).apply(inputs);
-    this.fc2 = tf.layers.dense({
-      activation: 'relu',
-      units: fc2Dims
-    }).apply(this.fc1);
-    this.mu = tf.layers.dense({
-      activation: 'tanh',
-      units: nActions
-    }).apply(this.fc2);
-    this.model = new tf.LayersModel({
-      inputs,
-      outputs: this.mu as tf.SymbolicTensor,
-    });
-  }
+//   getWeights(): tf.Tensor<tf.Rank>[] {
+//     return this.model.getWeights();
+//   }
 
-  compile(optimizer: tf.Optimizer) {
-    this.model.compile({
-      optimizer,
-      loss: 'MSE'
-    });
-    return this;
-  }
-}
+//   async load(): Promise<Actor> {
+//     this.model = await tf.loadLayersModel(this.checkpointFile);
+//     return this;
+//   }
+
+//   predict(observation: tf.Tensor): tf.Tensor {
+//     return this.model.predict(observation) as tf.Tensor;
+//   }
+
+//   async save(): Promise<Actor> {
+//     await this.model.save(this.checkpointFile);
+//     return this;
+//   }
+
+//   setWeights(weights: tf.Tensor<tf.Rank>[]): Actor {
+//     this.model.setWeights(weights);
+//     return this;
+//   }
+// }
