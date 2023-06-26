@@ -1,4 +1,4 @@
-FROM node:16-bullseye AS install
+FROM node:20-bookworm AS install
 WORKDIR /app
 COPY ./package.json ./package-lock.json ./
 RUN npm ci
@@ -10,7 +10,7 @@ RUN npm test
 FROM test AS build
 RUN npm run build
 
-FROM node:16-alpine3.14 AS package
+FROM node:20-alpine3.18 AS package
 WORKDIR /app
 COPY --from=build /app/dist/* ./
 EXPOSE 3000
