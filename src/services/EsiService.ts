@@ -431,15 +431,23 @@ export default class EsiService {
     return this._withExponentialBackoff(
       async () => await request(),
       (err: unknown) => {
-        if (!(err instanceof AxiosError)) {
+        if (err instanceof AxiosError) {
+          if (err.code === 'ECONNRESET') {
+            return;
+          }
+          if (err.response) {
+            switch (err.response.status) {
+              case 502:
+              case 503:
+              case 504:
+                return;
+              default:
+                throw err;
+            }
+          }
           throw err;
         }
-        if (!err.response) {
-          throw err;
-        }
-        if (![502, 503, 504].includes(err.response.status)) {
-          throw err;
-        }
+        throw err;
       },
       () => { throw new ServiceUnavailableError('ESI appears to be down.'); }
     );

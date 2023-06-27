@@ -89,7 +89,7 @@ class StationTradingController {
         const availableOrders = maxOrders - activeOrders.length;
         const budget = walletBalance / availableOrders;
 
-        const orders = [...marketOrders, ...structureOrders]
+        const orders = [...marketOrders, ...structureOrders];
         const strategy = new RandomTradeStrategy(marketTypes, orders);
         recommendedTrade = await this.tradeRecommender.updateRecommendedTrade({ ...recommendedTrade, status: 'Recommending trade' });
         const rt = await this.tradeRecommender.recommendTrade(characterId, budget, orders, strategy);
