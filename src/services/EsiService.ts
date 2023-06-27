@@ -213,13 +213,27 @@ export default class EsiService {
       method: 'get',
       url: '/v1/universe/structures'
     });
-    const structures = await Promise.all(structureIds.map(async (structureId) => {
-      const structure = await this.getStructure(eveAccessToken, structureId);
-      return {
-        ...structure,
-        structure_id: structureId,
+    const structures = (await Promise.all(structureIds.map(async (structureId) => {
+      try {
+        const structure = await this.getStructure(eveAccessToken, structureId);
+        return {
+          ...structure,
+          structure_id: structureId,
+        }
+      } catch (err) {
+        // Handle the situation in which the '/v1/universe/structures' returns a structureId for a structure that is not actually public
+        if (err instanceof AxiosError) {
+          switch (err.response?.status) {
+            case 403:
+              return undefined
+            default:
+              throw err;
+          }
+        }
+        throw err;
       }
-    }));
+    })))
+      .filter((structure) => structure !== undefined) as StructureData[];
     return structures.filter((structure) => structure.solar_system_id === systemId);
   }
 
