@@ -213,13 +213,27 @@ export default class EsiService {
       method: 'get',
       url: '/v1/universe/structures'
     });
-    const structures = await Promise.all(structureIds.map(async (structureId) => {
-      const structure = await this.getStructure(eveAccessToken, structureId);
-      return {
-        ...structure,
-        structure_id: structureId,
+    const structures = (await Promise.all(structureIds.map(async (structureId) => {
+      try {
+        const structure = await this.getStructure(eveAccessToken, structureId);
+        return {
+          ...structure,
+          structure_id: structureId,
+        }
+      } catch (err) {
+        // Handle the situation in which the '/v1/universe/structures' returns a structureId for a structure that is not actually public
+        if (err instanceof AxiosError) {
+          switch (err.response?.status) {
+            case 403:
+              return undefined
+            default:
+              throw err;
+          }
+        }
+        throw err;
       }
-    }));
+    })))
+      .filter((structure) => structure !== undefined) as StructureData[];
     return structures.filter((structure) => structure.solar_system_id === systemId);
   }
 
@@ -417,15 +431,23 @@ export default class EsiService {
     return this._withExponentialBackoff(
       async () => await request(),
       (err: unknown) => {
-        if (!(err instanceof AxiosError)) {
+        if (err instanceof AxiosError) {
+          if (err.code === 'ECONNRESET') {
+            return;
+          }
+          if (err.response) {
+            switch (err.response.status) {
+              case 502:
+              case 503:
+              case 504:
+                return;
+              default:
+                throw err;
+            }
+          }
           throw err;
         }
-        if (!err.response) {
-          throw err;
-        }
-        if (![502, 503, 504].includes(err.response.status)) {
-          throw err;
-        }
+        throw err;
       },
       () => { throw new ServiceUnavailableError('ESI appears to be down.'); }
     );
