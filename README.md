@@ -8,23 +8,24 @@ Suggests market trades in Eve Online.
 
 ## How to develop locally
 
-1. Export the relevant environment variables into the shell.
+<!-- 1. Export the relevant environment variables into the shell.
     ```
     export CLIENT_ID='<client-id>'
     export CLIENT_SECRET='<client-secret>'
     export JWT_PUBLIC_KEY_PATH='<path-to-jwt-public-key>'
     export JWT_PRIVATE_KEY_PATH='<path-to-jwt-private-key>'
-    ```
+    ``` -->
 
-1. Start a MongoDB container.
+
+1. Start containers for the services on which this project depends.
     ```
-    docker start mongodb 2>/dev/null \
-        || docker run \
-            -d \
-            --name mongodb \
-            -p 127.0.0.1:27017:27017 \
-            -v mongodb:/data/db \
-            mongo:5
+    docker compose up --file ./container-compose.yaml
+    ```
+1. Build and start the API server.
+    ```
+    ISKPRINTER_DATABASE_HOSTNAME='localhost' \
+    ISKPRINTER_DATABASE_PORT='9042' \
+    cargo run
     ```
 
 1. Start a Kafka container. This is based on https://github.com/confluentinc/cp-all-in-one/blob/master/cp-all-in-one-kraft/docker-compose.yml.

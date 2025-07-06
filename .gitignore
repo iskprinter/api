@@ -8,3 +8,6 @@
 
 # Jest
 coverage/
+
+# Rust
+target
