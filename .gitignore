@@ -1,5 +1,10 @@
+# Local development
 .vscode/
 **/.DS_Store
+
+# Typescript
 **/dist
 **/node_modules
+
+# Jest
 coverage/
